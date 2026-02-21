@@ -47,3 +47,13 @@ psql -d meetup_reservation -f 007_indexes.sql
 ```powershell
 Get-ChildItem 00[1-7]*.sql | Sort-Object Name | ForEach-Object { psql -d meetup_reservation -f $_.FullName }
 ```
+
+## Первый администратор (WP-0.5)
+
+После применения схемы выполните скрипт создания администратора:
+
+```bash
+psql -d meetup_reservation -f 008_admin_user.sql
+```
+
+Создаётся пользователь `admin@example.com` с паролем `admin123` и ролью `admin`. **Обязательно смените пароль после первого входа.**
