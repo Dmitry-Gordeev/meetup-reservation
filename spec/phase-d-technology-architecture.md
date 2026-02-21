@@ -308,4 +308,4 @@
 
 ---
 
-*Документ подготовлен в формате TOGAF Phase D (Technology Architecture) на основе [Phase A](./phase-a-architecture-vision.md), [Phase B](./phase-b-business-architecture.md) и [Phase C](./phase-c-information-systems-architecture.md). Следующий этап: Phase E (Opportunities and Solutions) — формирование Architecture Roadmap и планов миграции.*
+*Документ подготовлен в формате TOGAF Phase D (Technology Architecture) на основе [Phase A](./phase-a-architecture-vision.md), [Phase B](./phase-b-business-architecture.md) и [Phase C](./phase-c-information-systems-architecture.md). Следующий этап: [Phase E–F: Migration Plan](./phase-ef-migration-plan.md) — Architecture Roadmap и планы миграции.*
