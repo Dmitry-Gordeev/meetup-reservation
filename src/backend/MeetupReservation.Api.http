@@ -58,6 +58,17 @@ Content-Type: application/json
   "categoryIds": [1, 2]
 }
 
+### Get Events List (catalog, cursor pagination)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events?limit=10&sortBy=startAt
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events?limit=10&sortBy=createdAt
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events?limit=10&categoryIds=1,2
+
+### Get Organizer Events
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/organizers/1/events
+
+### Get Organizer Profile
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/organizers/1
+
 ### Get Event (public)
 GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1
 

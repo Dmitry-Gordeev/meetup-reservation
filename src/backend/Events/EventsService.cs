@@ -194,8 +194,166 @@ public class EventsService
         return count > 0;
     }
 
+    public async Task<EventsListResult> GetEventsListAsync(string? cursor, int limit, long[]? categoryIds, string? sortBy)
+    {
+        limit = Math.Clamp(limit, 1, 100);
+        var sortByNorm = sortBy?.ToLowerInvariant() switch
+        {
+            "createdat" or "created_at" => "createdAt",
+            _ => "startAt"
+        };
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        (DateTime sortVal, long id)? cursorVal = null;
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            var parts = cursor.Split('|');
+            if (parts.Length == 2 && DateTime.TryParse(parts[0], null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) && long.TryParse(parts[1], out var cid))
+                cursorVal = (dt, cid);
+        }
+
+        var categoryFilter = categoryIds != null && categoryIds.Length > 0;
+        var catClause = categoryFilter ? "AND EXISTS (SELECT 1 FROM meetup.event_categories ec WHERE ec.event_id = e.id AND ec.category_id = ANY(@CategoryIds))" : "";
+        var cursorClauseCreated = cursorVal.HasValue ? "AND (e.created_at, e.id) < (@CursorSort, @CursorId)" : "";
+        var cursorClauseStart = cursorVal.HasValue ? "AND (e.start_at, e.id) > (@CursorSort, @CursorId)" : "";
+
+        var sql = sortByNorm == "createdAt"
+            ? $@"SELECT e.id, e.organizer_id, e.title, e.start_at, e.end_at, e.location, e.is_online, e.status, e.created_at, op.name as organizer_name
+               FROM meetup.events e
+               LEFT JOIN meetup.organizer_profiles op ON op.user_id = e.organizer_id
+               WHERE e.is_public = true AND e.status != 'blocked' {catClause} {cursorClauseCreated}
+               ORDER BY e.created_at DESC, e.id DESC
+               LIMIT @Limit"
+            : $@"SELECT e.id, e.organizer_id, e.title, e.start_at, e.end_at, e.location, e.is_online, e.status, e.created_at, op.name as organizer_name
+               FROM meetup.events e
+               LEFT JOIN meetup.organizer_profiles op ON op.user_id = e.organizer_id
+               WHERE e.is_public = true AND e.status != 'blocked' {catClause} {cursorClauseStart}
+               ORDER BY e.start_at ASC, e.id ASC
+               LIMIT @Limit";
+
+        var fetchLimit = limit + 1;
+        var events = (await conn.QueryAsync<EventListRow>(sql, new
+        {
+            CategoryIds = categoryIds ?? Array.Empty<long>(),
+            CursorSort = cursorVal?.sortVal ?? default,
+            CursorId = cursorVal?.id ?? 0L,
+            Limit = fetchLimit
+        })).ToList();
+
+        var hasMore = events.Count > limit;
+        if (hasMore) events.RemoveAt(events.Count - 1);
+
+        string? nextCursor = null;
+        if (hasMore && events.Count > 0)
+        {
+            var last = events[^1];
+            var sortField = sortByNorm == "createdAt" ? last.created_at : last.start_at;
+            nextCursor = $"{sortField:O}|{last.id}";
+        }
+
+        var categoryIdsPerEvent = new Dictionary<long, long[]>();
+        if (events.Count > 0)
+        {
+            var ids = events.Select(e => e.id).ToArray();
+            var cats = await conn.QueryAsync<(long event_id, long category_id)>(
+                "SELECT event_id, category_id FROM meetup.event_categories WHERE event_id = ANY(@Ids)",
+                new { Ids = ids });
+            foreach (var g in cats.GroupBy(c => c.event_id))
+                categoryIdsPerEvent[g.Key] = g.Select(c => c.category_id).ToArray();
+        }
+
+        var items = events.Select(e => new EventListItemDto
+        {
+            Id = e.id,
+            OrganizerId = e.organizer_id,
+            OrganizerName = e.organizer_name,
+            Title = e.title,
+            StartAt = e.start_at,
+            EndAt = e.end_at,
+            Location = e.location,
+            IsOnline = e.is_online,
+            Status = e.status,
+            CreatedAt = e.created_at,
+            CategoryIds = categoryIdsPerEvent.GetValueOrDefault(e.id, [])
+        }).ToArray();
+
+        return new EventsListResult(items, nextCursor);
+    }
+
+    public async Task<(EventListItemDto[] items, bool organizerExists)> GetOrganizerEventsAsync(long organizerId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        var organizerExists = await conn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM meetup.organizer_profiles WHERE user_id = @Id",
+            new { Id = organizerId }) > 0;
+        if (!organizerExists) return ([], false);
+
+        var events = (await conn.QueryAsync<EventListRow>(
+            @"SELECT e.id, e.organizer_id, e.title, e.start_at, e.end_at, e.location, e.is_online, e.status, e.created_at, op.name as organizer_name
+              FROM meetup.events e
+              LEFT JOIN meetup.organizer_profiles op ON op.user_id = e.organizer_id
+              WHERE e.organizer_id = @OrganizerId AND e.is_public = true AND e.status != 'blocked'
+              ORDER BY e.start_at ASC",
+            new { OrganizerId = organizerId })).ToList();
+
+        var ids = events.Select(e => e.id).ToArray();
+        var cats = await conn.QueryAsync<(long event_id, long category_id)>(
+            "SELECT event_id, category_id FROM meetup.event_categories WHERE event_id = ANY(@Ids)",
+            new { Ids = ids });
+        var categoryIdsPerEvent = cats.GroupBy(c => c.event_id).ToDictionary(g => g.Key, g => g.Select(c => c.category_id).ToArray());
+
+        return (events.Select(e => new EventListItemDto
+        {
+            Id = e.id,
+            OrganizerId = e.organizer_id,
+            OrganizerName = e.organizer_name,
+            Title = e.title,
+            StartAt = e.start_at,
+            EndAt = e.end_at,
+            Location = e.location,
+            IsOnline = e.is_online,
+            Status = e.status,
+            CreatedAt = e.created_at,
+            CategoryIds = categoryIdsPerEvent.GetValueOrDefault(e.id, [])
+        }).ToArray(), true);
+    }
+
+    public async Task<OrganizerProfileDto?> GetOrganizerProfileAsync(long organizerId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var profile = await conn.QueryFirstOrDefaultAsync<(string name, string? description)>(
+            "SELECT name, description FROM meetup.organizer_profiles WHERE user_id = @UserId",
+            new { UserId = organizerId });
+        if (profile.name == null) return null;
+        return new OrganizerProfileDto { Id = organizerId, Name = profile.name, Description = profile.description };
+    }
+
     private record EventRow(long id, long organizer_id, string title, string? description, DateTime start_at, DateTime end_at, string? location, bool is_online, bool is_public, string status, DateTime created_at, string? organizer_name);
+    private record EventListRow(long id, long organizer_id, string title, DateTime start_at, DateTime end_at, string? location, bool is_online, string status, DateTime created_at, string? organizer_name);
 }
+
+public record EventsListResult(EventListItemDto[] Items, string? NextCursor);
+
+public record EventListItemDto
+{
+    public long Id { get; init; }
+    public long OrganizerId { get; init; }
+    public string? OrganizerName { get; init; }
+    public string Title { get; init; } = "";
+    public DateTime StartAt { get; init; }
+    public DateTime EndAt { get; init; }
+    public string? Location { get; init; }
+    public bool IsOnline { get; init; }
+    public string Status { get; init; } = "";
+    public DateTime CreatedAt { get; init; }
+    public long[] CategoryIds { get; init; } = [];
+}
+
+public record OrganizerProfileDto(long Id, string Name, string? Description);
 
 public record CreateEventRequest(
     string Title,

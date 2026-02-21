@@ -176,10 +176,39 @@ app.MapPost("/api/v1/events", [Microsoft.AspNetCore.Authorization.Authorize] asy
     return Results.Created($"/api/v1/events/{eventId}", new { id = eventId });
 }).RequireAuthorization();
 
+app.MapGet("/api/v1/events", async (string? cursor, int? limit, string? categoryIds, string? sortBy, EventsService events) =>
+{
+    var limitVal = limit ?? 20;
+    long[]? catIds = null;
+    if (!string.IsNullOrEmpty(categoryIds))
+    {
+        var parts = categoryIds.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var parsed = new List<long>();
+        foreach (var p in parts)
+            if (long.TryParse(p.Trim(), out var id)) parsed.Add(id);
+        if (parsed.Count > 0) catIds = parsed.ToArray();
+    }
+    var result = await events.GetEventsListAsync(cursor, limitVal, catIds, sortBy);
+    return Results.Ok(result);
+});
+
 app.MapGet("/api/v1/events/{id:long}", async (long id, EventsService events) =>
 {
     var evt = await events.GetEventByIdAsync(id);
     return evt != null ? Results.Ok(evt) : Results.NotFound();
+});
+
+app.MapGet("/api/v1/organizers/{id:long}/events", async (long id, EventsService events) =>
+{
+    var (items, organizerExists) = await events.GetOrganizerEventsAsync(id);
+    if (!organizerExists) return Results.NotFound();
+    return Results.Ok(items);
+});
+
+app.MapGet("/api/v1/organizers/{id:long}", async (long id, EventsService events) =>
+{
+    var profile = await events.GetOrganizerProfileAsync(id);
+    return profile != null ? Results.Ok(profile) : Results.NotFound();
 });
 
 app.MapPost("/api/v1/events/{id:long}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, EventsService events) =>
