@@ -355,7 +355,7 @@ public class EventsService
             "SELECT name, description, (avatar_content IS NOT NULL) as has_avatar FROM meetup.organizer_profiles WHERE user_id = @UserId",
             new { UserId = organizerId });
         if (profile.name == null) return null;
-        return new OrganizerProfileDto { Id = organizerId, Name = profile.name, Description = profile.description, HasAvatar = profile.has_avatar };
+        return new OrganizerProfileDto(organizerId, profile.name, profile.description, profile.has_avatar);
     }
 
     public async Task<(byte[] content, string contentType)?> GetOrganizerAvatarAsync(long organizerId)

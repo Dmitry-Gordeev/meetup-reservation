@@ -30,6 +30,7 @@ builder.Services.AddSingleton<EmailService>(sp => new EmailService(sp.GetRequire
 builder.Services.AddSingleton<AuthService>(sp => new AuthService(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<EventsService>(sp => new EventsService(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<RegistrationsService>(sp => new RegistrationsService(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<EmailService>()));
+builder.Services.AddHostedService<MeetupReservation.Api.Notifications.ReminderBackgroundService>();
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
