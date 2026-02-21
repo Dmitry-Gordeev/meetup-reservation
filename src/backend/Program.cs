@@ -9,6 +9,7 @@ using MimeKit;
 using Npgsql;
 using Dapper;
 using MeetupReservation.Api.Auth;
+using MeetupReservation.Api.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<AuthService>(sp => new AuthService(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<EventsService>(sp => new EventsService(sp.GetRequiredService<IConfiguration>()));
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -138,6 +140,84 @@ app.MapGet("/api/v1/me", [Microsoft.AspNetCore.Authorization.Authorize] (ClaimsP
     var email = user.FindFirstValue(ClaimTypes.Email);
     var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
     return Results.Ok(new { id = userId, email, roles });
+}).RequireAuthorization();
+
+app.MapPost("/api/v1/events", [Microsoft.AspNetCore.Authorization.Authorize] async (CreateEventRequest req, ClaimsPrincipal user, EventsService events) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    if (!await events.IsOrganizerAsync(userId))
+        return Results.Forbid();
+
+    if (string.IsNullOrWhiteSpace(req.Title))
+        return Results.BadRequest(new { error = "Title is required" });
+
+    if (req.TicketTypes == null || req.TicketTypes.Length == 0)
+        return Results.BadRequest(new { error = "At least one ticket type is required" });
+
+    foreach (var tt in req.TicketTypes)
+    {
+        if (string.IsNullOrWhiteSpace(tt.Name) || tt.Capacity <= 0)
+            return Results.BadRequest(new { error = "Each ticket type must have name and capacity > 0" });
+    }
+
+    if (req.CategoryIds != null)
+    {
+        foreach (var catId in req.CategoryIds)
+        {
+            if (!await events.CategoryExistsAsync(catId))
+                return Results.BadRequest(new { error = $"Category {catId} not found or archived" });
+        }
+    }
+
+    var eventId = await events.CreateEventAsync(userId, req);
+    return Results.Created($"/api/v1/events/{eventId}", new { id = eventId });
+}).RequireAuthorization();
+
+app.MapGet("/api/v1/events/{id:long}", async (long id, EventsService events) =>
+{
+    var evt = await events.GetEventByIdAsync(id);
+    return evt != null ? Results.Ok(evt) : Results.NotFound();
+});
+
+app.MapPost("/api/v1/events/{id:long}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, EventsService events) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var cancelled = await events.CancelEventAsync(id, userId);
+    return cancelled ? Results.Ok(new { status = "cancelled" }) : Results.NotFound();
+}).RequireAuthorization();
+
+app.MapPost("/api/v1/events/{id:long}/images", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, HttpContext http, EventsService events) =>
+{
+    var userIdStr = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var form = await http.Request.ReadFormAsync();
+    var file = form.Files.GetFile("image") ?? form.Files.FirstOrDefault();
+    if (file == null)
+        return Results.BadRequest(new { error = "Image file is required" });
+
+    await using var stream = file.OpenReadStream();
+    using var ms = new MemoryStream();
+    await stream.CopyToAsync(ms);
+    var content = ms.ToArray();
+
+    try
+    {
+        var contentType = file.ContentType ?? "application/octet-stream";
+        var imageId = await events.AddEventImageAsync(id, userId, content, contentType, file.FileName, 0);
+        return Results.Created($"/api/v1/events/{id}/images/{imageId}", new { id = imageId });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.NotFound();
+    }
 }).RequireAuthorization();
 
 app.Run();

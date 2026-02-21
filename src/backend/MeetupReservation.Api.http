@@ -38,3 +38,35 @@ Content-Type: application/json
 ### Me (requires token - replace TOKEN with value from login)
 GET {{MeetupReservation.Api_HostAddress}}/api/v1/me
 Authorization: Bearer TOKEN
+
+### Create Event (organizer, replace TOKEN)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/events
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+{
+  "title": "Тестовая конференция",
+  "description": "Описание события",
+  "startAt": "2025-04-01T10:00:00Z",
+  "endAt": "2025-04-01T18:00:00Z",
+  "location": "Москва",
+  "isOnline": false,
+  "isPublic": true,
+  "ticketTypes": [
+    { "name": "Стандарт", "price": 0, "capacity": 100 }
+  ],
+  "categoryIds": [1, 2]
+}
+
+### Get Event (public)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1
+
+### Cancel Event (organizer, replace TOKEN and EVENT_ID)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/cancel
+Authorization: Bearer TOKEN
+
+### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
+# POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
+# Authorization: Bearer TOKEN
+# Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+# (use REST Client or curl with -F "image=@path/to/image.jpg")
