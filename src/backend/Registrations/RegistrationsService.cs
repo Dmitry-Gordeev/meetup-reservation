@@ -1,4 +1,5 @@
 using Dapper;
+using MeetupReservation.Api.Notifications;
 using Npgsql;
 
 namespace MeetupReservation.Api.Registrations;
@@ -6,11 +7,13 @@ namespace MeetupReservation.Api.Registrations;
 public class RegistrationsService
 {
     private readonly string _connectionString;
+    private readonly EmailService _emailService;
 
-    public RegistrationsService(IConfiguration config)
+    public RegistrationsService(IConfiguration config, EmailService emailService)
     {
         _connectionString = config.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string not configured");
+        _emailService = emailService;
     }
 
     public async Task<RegistrationResult> CreateRegistrationAsync(long eventId, CreateRegistrationRequest req, long? userId)
@@ -84,7 +87,77 @@ public class RegistrationsService
                 Phone = phone
             });
 
+        var evtInfo = await conn.QueryFirstOrDefaultAsync<(string title, DateTime start_at, string? location)>(
+            "SELECT title, start_at, location FROM meetup.events WHERE id = @EventId",
+            new { EventId = eventId });
+        if (evtInfo.title != null)
+        {
+            var participantName = $"{firstName} {lastName}".Trim();
+            var body = EmailTemplates.RegistrationConfirmation(participantName, evtInfo.title, evtInfo.start_at, evtInfo.location);
+            _ = _emailService.SendAsync(email, $"Подтверждение регистрации: {evtInfo.title}", body);
+        }
+
         return new RegistrationResult { Id = registrationId, StatusCode = 201 };
+    }
+
+    public async Task<long?> GetRegistrationEventIdAsync(long registrationId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.ExecuteScalarAsync<long?>(
+            "SELECT event_id FROM meetup.registrations WHERE id = @Id",
+            new { Id = registrationId });
+    }
+
+    public async Task<CancelRegistrationResult?> CancelRegistrationAsync(long registrationId, long? userId, bool isOrganizerOfEvent)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        var reg = await conn.QueryFirstOrDefaultAsync<(long id, string email, string first_name, string last_name, long organizer_id, string event_title, DateTime start_at, string organizer_email, string? organizer_name)>(
+            @"SELECT r.id, r.email, r.first_name, r.last_name, e.organizer_id, e.title, e.start_at, u.email as organizer_email, op.name as organizer_name
+              FROM meetup.registrations r
+              JOIN meetup.events e ON e.id = r.event_id
+              JOIN meetup.users u ON u.id = e.organizer_id
+              LEFT JOIN meetup.organizer_profiles op ON op.user_id = e.organizer_id
+              WHERE r.id = @Id AND r.status = 'registered'",
+            new { Id = registrationId });
+        if (reg.id == 0) return null;
+
+        var userEmail = userId.HasValue ? await GetUserEmailAsync(conn, userId.Value) : null;
+        var isParticipant = userEmail != null && string.Equals(reg.email, userEmail, StringComparison.OrdinalIgnoreCase);
+        if (!isOrganizerOfEvent && !isParticipant) return new CancelRegistrationResult { Forbidden = true };
+
+        await conn.ExecuteAsync(
+            "UPDATE meetup.registrations SET status = 'cancelled' WHERE id = @Id",
+            new { Id = registrationId });
+
+        if (isParticipant)
+        {
+            var organizerName = reg.organizer_name ?? "Организатор";
+            var body = EmailTemplates.RegistrationCancelledByParticipant(
+                organizerName,
+                $"{reg.first_name} {reg.last_name}",
+                reg.email,
+                reg.event_title,
+                reg.start_at);
+            _ = _emailService.SendAsync(reg.organizer_email, $"Отмена регистрации: {reg.event_title}", body);
+        }
+
+        return new CancelRegistrationResult { Success = true };
+    }
+
+    private static async Task<string?> GetUserEmailAsync(NpgsqlConnection conn, long userId)
+    {
+        return await conn.ExecuteScalarAsync<string>("SELECT email FROM meetup.users WHERE id = @Id", new { Id = userId });
+    }
+
+    public async Task<(string email, string firstName, string lastName)[]> GetEventParticipantsForNotificationAsync(long eventId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var rows = await conn.QueryAsync<(string email, string first_name, string last_name)>(
+            "SELECT email, first_name, last_name FROM meetup.registrations WHERE event_id = @EventId AND status IN ('registered', 'checked_in')",
+            new { EventId = eventId });
+        return rows.Select(r => (r.email, r.first_name, r.last_name)).ToArray();
     }
 
     public async Task<ParticipantProfileDto?> GetParticipantProfileAsync(long userId)
@@ -115,3 +188,5 @@ public record CreateRegistrationRequest(
 public record RegistrationResult(long? Id = null, string? Error = null, int StatusCode = 200);
 
 public record ParticipantProfileDto(string FirstName, string LastName, string? MiddleName, string Email, string? Phone);
+
+public record CancelRegistrationResult(bool Success = false, bool Forbidden = false);

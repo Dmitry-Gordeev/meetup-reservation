@@ -89,6 +89,10 @@ Content-Type: application/json
   "paymentCompleted": true
 }
 
+### Cancel Registration (participant or organizer, replace TOKEN and REGISTRATION_ID)
+DELETE {{MeetupReservation.Api_HostAddress}}/api/v1/registrations/1
+Authorization: Bearer TOKEN
+
 ### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
 # POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
 # Authorization: Bearer TOKEN
