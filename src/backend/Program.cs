@@ -306,6 +306,29 @@ app.MapDelete("/api/v1/registrations/{id:long}", [Microsoft.AspNetCore.Authoriza
     return Results.Ok(new { status = "cancelled" });
 }).RequireAuthorization();
 
+app.MapPatch("/api/v1/registrations/{id:long}/check-in", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, RegistrationsService registrations) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var result = await registrations.CheckInRegistrationAsync(id, userId);
+    if (result.NotFound) return Results.NotFound();
+    if (result.Forbidden) return Results.Forbid();
+    return Results.Ok(new { status = "checked_in" });
+}).RequireAuthorization();
+
+app.MapGet("/api/v1/events/{id:long}/registrations", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, RegistrationsService registrations) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var items = await registrations.GetEventRegistrationsForOrganizerAsync(id, userId);
+    if (items == null) return Results.NotFound();
+    return Results.Ok(items);
+}).RequireAuthorization();
+
 app.MapPost("/api/v1/events/{id:long}/images", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, HttpContext http, EventsService events) =>
 {
     var userIdStr = http.User.FindFirstValue(ClaimTypes.NameIdentifier);

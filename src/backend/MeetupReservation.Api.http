@@ -93,6 +93,14 @@ Content-Type: application/json
 DELETE {{MeetupReservation.Api_HostAddress}}/api/v1/registrations/1
 Authorization: Bearer TOKEN
 
+### Get Event Registrations (organizer only, replace TOKEN and EVENT_ID)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/registrations
+Authorization: Bearer TOKEN
+
+### Check-in Registration (organizer only, replace TOKEN and REGISTRATION_ID)
+PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/registrations/1/check-in
+Authorization: Bearer TOKEN
+
 ### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
 # POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
 # Authorization: Bearer TOKEN

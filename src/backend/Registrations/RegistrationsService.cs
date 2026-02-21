@@ -119,7 +119,7 @@ public class RegistrationsService
               JOIN meetup.events e ON e.id = r.event_id
               JOIN meetup.users u ON u.id = e.organizer_id
               LEFT JOIN meetup.organizer_profiles op ON op.user_id = e.organizer_id
-              WHERE r.id = @Id AND r.status = 'registered'",
+              WHERE r.id = @Id AND r.status IN ('registered', 'checked_in')",
             new { Id = registrationId });
         if (reg.id == 0) return null;
 
@@ -193,6 +193,53 @@ public class RegistrationsService
             new { UserId = userId, UserEmail = userEmail ?? "" });
         return rows.Select(r => new MyRegistrationDto(r.id, r.event_id, r.event_title, r.start_at, r.ticket_type_name, r.status)).ToArray();
     }
+
+    /// <summary>
+    /// WP-3.1.1: Ручная отметка чек-ина. Только организатор события.
+    /// </summary>
+    public async Task<CheckInResult> CheckInRegistrationAsync(long registrationId, long organizerUserId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var reg = await conn.QueryFirstOrDefaultAsync<(long id, long event_id, long organizer_id, string status)>(
+            "SELECT r.id, r.event_id, e.organizer_id, r.status FROM meetup.registrations r JOIN meetup.events e ON e.id = r.event_id WHERE r.id = @Id",
+            new { Id = registrationId });
+        if (reg.id == 0) return new CheckInResult { NotFound = true };
+        if (reg.organizer_id != organizerUserId) return new CheckInResult { Forbidden = true };
+        if (reg.status == "checked_in") return new CheckInResult { Success = true }; // уже отмечен
+
+        await conn.ExecuteAsync(
+            "UPDATE meetup.registrations SET status = 'checked_in', checked_in_at = (NOW() AT TIME ZONE 'UTC') WHERE id = @Id",
+            new { Id = registrationId });
+        return new CheckInResult { Success = true };
+    }
+
+    /// <summary>
+    /// WP-3.1.3: Список участников события. Только для организатора.
+    /// </summary>
+    public async Task<EventRegistrationDto[]?> GetEventRegistrationsForOrganizerAsync(long eventId, long organizerUserId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var isOrganizer = await conn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM meetup.events WHERE id = @EventId AND organizer_id = @UserId",
+            new { EventId = eventId, UserId = organizerUserId });
+        if (isOrganizer == 0) return null;
+
+        var rows = await conn.QueryAsync<(long id, string first_name, string last_name, string? middle_name, string email, string? phone, string status, DateTime? checked_in_at)>(
+            @"SELECT id, first_name, last_name, middle_name, email, phone, status, checked_in_at
+              FROM meetup.registrations
+              WHERE event_id = @EventId AND status IN ('registered', 'checked_in')
+              ORDER BY created_at",
+            new { EventId = eventId });
+        return rows.Select(r => new EventRegistrationDto(
+            r.id,
+            r.first_name,
+            r.last_name,
+            r.middle_name,
+            r.email,
+            r.phone,
+            r.status,
+            r.checked_in_at)).ToArray();
+    }
 }
 
 public record CreateRegistrationRequest(
@@ -211,3 +258,7 @@ public record ParticipantProfileDto(string FirstName, string LastName, string? M
 public record CancelRegistrationResult(bool Success = false, bool Forbidden = false);
 
 public record MyRegistrationDto(long Id, long EventId, string EventTitle, DateTime StartAt, string TicketTypeName, string Status);
+
+public record CheckInResult(bool Success = false, bool NotFound = false, bool Forbidden = false);
+
+public record EventRegistrationDto(long Id, string FirstName, string LastName, string? MiddleName, string Email, string? Phone, string Status, DateTime? CheckedInAt);
