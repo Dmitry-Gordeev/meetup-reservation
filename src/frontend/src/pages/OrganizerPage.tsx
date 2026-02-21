@@ -6,6 +6,7 @@ interface OrganizerProfile {
   id: number
   name: string
   description: string | null
+  hasAvatar?: boolean
 }
 
 interface EventItem {
@@ -55,8 +56,19 @@ export default function OrganizerPage() {
 
   return (
     <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
-      <h1>{profile.name}</h1>
-      {profile.description && <p style={{ color: '#666', marginBottom: '1.5rem' }}>{profile.description}</p>}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        {profile.hasAvatar && (
+          <img
+            src={`/api/v1/organizers/${id}/avatar`}
+            alt={profile.name}
+            style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }}
+          />
+        )}
+        <div>
+          <h1 style={{ margin: 0 }}>{profile.name}</h1>
+          {profile.description && <p style={{ color: '#666', marginTop: '0.5rem' }}>{profile.description}</p>}
+        </div>
+      </div>
 
       <h2>События</h2>
       {events.length === 0 ? (

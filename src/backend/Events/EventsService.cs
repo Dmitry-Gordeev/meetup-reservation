@@ -333,11 +333,21 @@ public class EventsService
     public async Task<OrganizerProfileDto?> GetOrganizerProfileAsync(long organizerId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
-        var profile = await conn.QueryFirstOrDefaultAsync<(string name, string? description)>(
-            "SELECT name, description FROM meetup.organizer_profiles WHERE user_id = @UserId",
+        var profile = await conn.QueryFirstOrDefaultAsync<(string name, string? description, bool has_avatar)>(
+            "SELECT name, description, (avatar_content IS NOT NULL) as has_avatar FROM meetup.organizer_profiles WHERE user_id = @UserId",
             new { UserId = organizerId });
         if (profile.name == null) return null;
-        return new OrganizerProfileDto { Id = organizerId, Name = profile.name, Description = profile.description };
+        return new OrganizerProfileDto { Id = organizerId, Name = profile.name, Description = profile.description, HasAvatar = profile.has_avatar };
+    }
+
+    public async Task<(byte[] content, string contentType)?> GetOrganizerAvatarAsync(long organizerId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var row = await conn.QueryFirstOrDefaultAsync<(byte[]? content, string? content_type)>(
+            "SELECT avatar_content, avatar_content_type FROM meetup.organizer_profiles WHERE user_id = @UserId AND avatar_content IS NOT NULL",
+            new { UserId = organizerId });
+        if (row.content == null || row.content_type == null) return null;
+        return (row.content, row.content_type);
     }
 
     private record EventRow(long id, long organizer_id, string title, string? description, DateTime start_at, DateTime end_at, string? location, bool is_online, bool is_public, string status, DateTime created_at, string? organizer_name);
@@ -361,7 +371,7 @@ public record EventListItemDto
     public long[] CategoryIds { get; init; } = [];
 }
 
-public record OrganizerProfileDto(long Id, string Name, string? Description);
+public record OrganizerProfileDto(long Id, string Name, string? Description, bool HasAvatar = false);
 
 public record CategoryDto(long Id, string Name);
 

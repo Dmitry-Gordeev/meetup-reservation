@@ -211,6 +211,13 @@ app.MapGet("/api/v1/organizers/{id:long}", async (long id, EventsService events)
     return profile != null ? Results.Ok(profile) : Results.NotFound();
 });
 
+app.MapGet("/api/v1/organizers/{id:long}/avatar", async (long id, EventsService events) =>
+{
+    var avatar = await events.GetOrganizerAvatarAsync(id);
+    if (avatar == null) return Results.NotFound();
+    return Results.File(avatar.Value.content, avatar.Value.contentType);
+});
+
 app.MapGet("/api/v1/categories", async (EventsService events) =>
 {
     var categories = await events.GetCategoriesAsync();

@@ -22,6 +22,11 @@ export default function HomePage() {
         <Link to="/events" style={{ marginRight: '1rem' }}>
           Каталог
         </Link>
+        {isAuthenticated && me?.roles?.includes('organizer') && (
+          <Link to="/organizer/create" style={{ marginRight: '1rem' }}>
+            Создать событие
+          </Link>
+        )}
         {isAuthenticated ? (
           <button onClick={logout} style={{ marginRight: '1rem' }}>
             Выйти
