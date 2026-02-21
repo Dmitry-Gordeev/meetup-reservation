@@ -403,4 +403,4 @@ Meetup Reservation — Business Functions
 
 ---
 
-*Документ подготовлен в формате TOGAF Phase B (Business Architecture) на основе [Phase A: Architecture Vision](./phase-a-architecture-vision.md).*
+*Документ подготовлен в формате TOGAF Phase B (Business Architecture) на основе [Phase A: Architecture Vision](./phase-a-architecture-vision.md). Следующий этап: [Phase C: Information Systems Architectures](./phase-c-information-systems-architecture.md).*

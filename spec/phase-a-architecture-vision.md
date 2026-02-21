@@ -189,4 +189,4 @@ Meetup Reservation — веб-платформа для организации, 
 
 ---
 
-*Документ подготовлен на основе [basic-requirements.md](./basic-requirements.md) в формате TOGAF Phase A (Architecture Vision). Следующий этап: [Phase B: Business Architecture](./phase-b-business-architecture.md).*
+*Документ подготовлен на основе [basic-requirements.md](./basic-requirements.md) в формате TOGAF Phase A (Architecture Vision). Следующие этапы: [Phase B: Business Architecture](./phase-b-business-architecture.md) → [Phase C: Information Systems Architectures](./phase-c-information-systems-architecture.md).*
