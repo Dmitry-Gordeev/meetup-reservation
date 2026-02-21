@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 interface TicketType {
   id: number
@@ -26,6 +27,14 @@ interface Event {
   ticketTypes: TicketType[]
 }
 
+interface ParticipantProfile {
+  firstName: string
+  lastName: string
+  middleName: string | null
+  email: string
+  phone: string | null
+}
+
 function formatDate(s: string) {
   const d = new Date(s)
   return d.toLocaleString('ru-RU', {
@@ -40,9 +49,21 @@ function formatDate(s: string) {
 
 export default function EventPage() {
   const { id } = useParams<{ id: string }>()
+  const { isAuthenticated } = useAuth()
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const [ticketTypeId, setTicketTypeId] = useState<number | null>(null)
+  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [middleName, setMiddleName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [paymentCompleted, setPaymentCompleted] = useState(false)
+  const [regLoading, setRegLoading] = useState(false)
+  const [regError, setRegError] = useState('')
+  const [regSuccess, setRegSuccess] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -56,8 +77,74 @@ export default function EventPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const loadProfile = useCallback(() => {
+    if (!isAuthenticated) return
+    apiFetch('/me/profile')
+      .then((r) => {
+        if (!r.ok) return
+        return r.json()
+      })
+      .then((p: ParticipantProfile | undefined) => {
+        if (p) {
+          setEmail(p.email)
+          setFirstName(p.firstName)
+          setLastName(p.lastName)
+          setMiddleName(p.middleName ?? '')
+          setPhone(p.phone ?? '')
+        }
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault()
+    if (!event || !ticketTypeId) return
+    const tt = event.ticketTypes.find((t) => t.id === ticketTypeId)
+    if (!tt) return
+    if (!email.trim() || !firstName.trim() || !lastName.trim()) {
+      setRegError('Заполните обязательные поля: email, имя, фамилия')
+      return
+    }
+    if (tt.price > 0 && !paymentCompleted) {
+      setRegError('Для платных билетов необходимо подтвердить оплату')
+      return
+    }
+    setRegError('')
+    setRegLoading(true)
+    try {
+      const res = await apiFetch(`/events/${event.id}/registrations`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ticketTypeId,
+          email: email.trim().toLowerCase(),
+          firstName: firstName.trim() || undefined,
+          lastName: lastName.trim() || undefined,
+          middleName: middleName.trim() || undefined,
+          phone: phone.trim() || undefined,
+          paymentCompleted: tt.price > 0 ? paymentCompleted : undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setRegError(data.error || `Ошибка ${res.status}`)
+        return
+      }
+      setRegSuccess(true)
+    } catch {
+      setRegError('Ошибка сети')
+    } finally {
+      setRegLoading(false)
+    }
+  }
+
   if (loading) return <p style={{ padding: '2rem' }}>Загрузка...</p>
   if (error || !event) return <p style={{ padding: '2rem', color: 'red' }}>{error || 'Событие не найдено'}</p>
+
+  const canRegister = event.status === 'active' && event.ticketTypes.length > 0
 
   return (
     <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
@@ -106,6 +193,147 @@ export default function EventPage() {
             ))}
           </ul>
         </div>
+      )}
+
+      {regSuccess ? (
+        <div
+          style={{
+            marginTop: '2rem',
+            padding: '1.5rem',
+            background: '#e8f5e9',
+            borderRadius: 8,
+            border: '1px solid #a5d6a7',
+          }}
+        >
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#2e7d32' }}>Регистрация успешна!</h3>
+          <p style={{ margin: 0 }}>
+            На указанный email будет отправлено письмо с подтверждением регистрации.
+          </p>
+        </div>
+      ) : (
+        canRegister && (
+          <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: 8 }}>
+            <h3>Зарегистрироваться</h3>
+            <form onSubmit={handleRegister}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                  Тип билета
+                </label>
+                <select
+                  value={ticketTypeId ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setTicketTypeId(v ? Number(v) : null)
+                    setPaymentCompleted(false)
+                  }}
+                  required
+                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                >
+                  <option value="">— Выберите —</option>
+                  {event.ticketTypes.map((tt) => (
+                    <option key={tt.id} value={tt.id}>
+                      {tt.name} — {tt.price === 0 ? 'Бесплатно' : `${tt.price} ₽`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {ticketTypeId && (event.ticketTypes.find((t) => t.id === ticketTypeId)?.price ?? 0) > 0 && (
+                <div
+                  style={{
+                    marginBottom: '1rem',
+                    padding: '1rem',
+                    background: '#fff3e0',
+                    borderRadius: 6,
+                    border: '1px solid #ffcc80',
+                  }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={paymentCompleted}
+                      onChange={(e) => setPaymentCompleted(e.target.checked)}
+                    />
+                    <span>Оплата произведена (заглушка)</span>
+                  </label>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#666' }}>
+                    В реальном приложении здесь будет переход к оплате.
+                  </p>
+                </div>
+              )}
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                  Email <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                    Имя <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    autoComplete="given-name"
+                    style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                    Фамилия <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    autoComplete="family-name"
+                    style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                  />
+                </div>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                  Отчество
+                </label>
+                <input
+                  type="text"
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  autoComplete="additional-name"
+                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                  Телефон
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  autoComplete="tel"
+                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                />
+              </div>
+              {regError && <p style={{ color: 'red', marginBottom: '1rem' }}>{regError}</p>}
+              <button type="submit" disabled={regLoading} style={{ padding: '0.5rem 1rem' }}>
+                {regLoading ? 'Отправка...' : 'Зарегистрироваться'}
+              </button>
+            </form>
+          </div>
+        )
       )}
     </div>
   )

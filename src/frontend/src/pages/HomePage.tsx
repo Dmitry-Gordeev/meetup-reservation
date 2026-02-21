@@ -27,6 +27,11 @@ export default function HomePage() {
             Создать событие
           </Link>
         )}
+        {isAuthenticated && (
+          <Link to="/me/registrations" style={{ marginRight: '1rem' }}>
+            Мои регистрации
+          </Link>
+        )}
         {isAuthenticated ? (
           <button onClick={logout} style={{ marginRight: '1rem' }}>
             Выйти

@@ -151,6 +151,24 @@ public class EventsService
         };
     }
 
+    public async Task<(string title, DateTime startAt, string? location)?> GetEventBasicInfoAsync(long eventId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var row = await conn.QueryFirstOrDefaultAsync<(string title, DateTime start_at, string? location)>(
+            "SELECT title, start_at, location FROM meetup.events WHERE id = @Id",
+            new { Id = eventId });
+        return row.title != null ? (row.title, row.start_at, row.location) : null;
+    }
+
+    public async Task<bool> IsOrganizerOfEventAsync(long userId, long eventId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var count = await conn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM meetup.events WHERE id = @EventId AND organizer_id = @UserId",
+            new { EventId = eventId, UserId = userId });
+        return count > 0;
+    }
+
     public async Task<bool> CancelEventAsync(long eventId, long organizerId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -337,7 +355,7 @@ public class EventsService
             "SELECT name, description, (avatar_content IS NOT NULL) as has_avatar FROM meetup.organizer_profiles WHERE user_id = @UserId",
             new { UserId = organizerId });
         if (profile.name == null) return null;
-        return new OrganizerProfileDto { Id = organizerId, Name = profile.name, Description = profile.description, HasAvatar = profile.has_avatar };
+        return new OrganizerProfileDto(organizerId, profile.name, profile.description, profile.has_avatar);
     }
 
     public async Task<(byte[] content, string contentType)?> GetOrganizerAvatarAsync(long organizerId)
