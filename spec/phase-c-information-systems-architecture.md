@@ -20,7 +20,7 @@
 
 - **Backend:** ASP.NET Core (.NET 10), PostgreSQL, SQL-скрипты (без Entity Framework).
 - **Frontend:** React + TypeScript + Vite.
-- **Монорепозиторий:** backend и frontend в одном репозитории.
+- **Монорепозиторий:** backend и frontend в одном репозитории; структура `src/backend/`, `src/frontend/`; SQL-скрипты в `src/backend/db/`.
 
 ---
 
@@ -40,7 +40,7 @@
 ### 2.2 Target Data Architecture
 
 **СУБД:** PostgreSQL  
-**Управление схемой:** SQL-скрипты, миграции вручную или через скрипты  
+**Управление схемой:** SQL-скрипты в `src/backend/db/`, миграции — только ручные  
 **Подход:** без ORM (Entity Framework не используется)  
 **Хранение файлов:** в первой версии — в БД в виде BLOB (bytea); фото событий, вложения, аватар организатора в соответствующих таблицах
 
@@ -234,10 +234,10 @@
 | ABB-05 | **Registrations Module** | ASP.NET Core | Регистрация на мероприятия, проверка дублей, оплата-заглушка |
 | ABB-06 | **Notifications Module** | ASP.NET Core + SMTP | Отправка email (подтверждение, напоминания, отмена) |
 | ABB-07 | **Admin Module** | ASP.NET Core | Модерация, блокировка, управление пользователями и категориями |
-| ABB-08 | **Export Module** | ASP.NET Core + библиотека Excel/PDF | Генерация Excel/PDF со списком участников |
+| ABB-08 | **Export Module** | ASP.NET Core + ClosedXML (Excel), PdfSharp (PDF) | Генерация Excel/PDF со списком участников |
 | ABB-09 | **Data Access** | ADO.NET / Dapper, SQL | Доступ к PostgreSQL без ORM |
 | ABB-10 | **Database** | PostgreSQL | Хранение данных; схема через SQL-скрипты |
-| ABB-11 | **Email Service** | SMTP | Отправка писем |
+| ABB-11 | **Email Service** | MailKit + SMTP | Отправка писем; только локальный SMTP-сервер |
 
 #### 3.2.3 Application / Business Function Matrix
 
@@ -307,7 +307,7 @@
 |---|----------|--------|-----|
 | D1 | Нет БД | PostgreSQL с полной схемой | Создание с нуля |
 | D2 | Нет модели | 11 сущностей (включая user_roles), связи, индексы | Разработка SQL-скриптов |
-| D3 | Нет миграций | SQL-скрипты миграций | Ручные или скриптованные миграции |
+| D3 | Нет миграций | SQL-скрипты в `src/backend/db/` | Только ручные миграции |
 
 ### 4.2 Application Architecture Gaps
 
@@ -339,7 +339,7 @@
 | DR-04 | UNIQUE(event_id, email) для запрета дублей | Must |
 | DR-05 | Индексы для каталога (фильтрация, сортировка) | Must |
 | DR-06 | Изоляция данных по organizer_id | Must |
-| DR-07 | Хранение файлов (фото событий, вложения, аватар организатора) в БД в виде BLOB (bytea) в первой версии | Must |
+| DR-07 | Хранение файлов (фото событий, вложения, аватар организатора) в БД в виде BLOB (bytea) в первой версии; макс. размер загрузки 50 MB; ограничений по типам файлов нет | Must |
 | DR-08 | Дата/время (start_at, end_at, created_at, checked_in_at) хранятся в UTC | Must |
 
 ### 5.2 Требования к приложениям
@@ -364,18 +364,18 @@
 | IR-01 | Frontend вызывает Backend API по HTTPS | Must |
 | IR-02 | Backend подключается к PostgreSQL | Must |
 | IR-03 | Backend отправляет email через SMTP | Must |
-| IR-04 | Конфигурация (connection strings, SMTP) через переменные окружения | Must |
+| IR-04 | Backend: connection strings, SMTP — переменные окружения; секретный ключ JWT и базовый URL API frontend — конфигурационные файлы (в первой версии). См. Phase D TR-08 | Must |
 
 ---
 
-## 6. Связь с Phase A и Phase B
+## 6. Связь с Phase A, B и D
 
-| Phase A | Phase B | Phase C |
-|---------|---------|---------|
-| Технологический стек | Business Capabilities | Data Model, Application Components |
-| Scope (backend, frontend) | Business Processes | API, модули, сущности |
-| Принципы (AP-1–AP-5) | FR/NFR | DR, AR, IR |
-| Candidate Roadmap (Phase B) | RC-1–RC-8 | ABB-01–ABB-11, сущности |
+| Phase A | Phase B | Phase C | Phase D |
+|---------|---------|---------|---------|
+| Технологический стек | Business Capabilities | Data Model, Application Components | Technology Components (TC) |
+| Scope (backend, frontend) | Business Processes | API, модули, сущности | Technology Standards (TS) |
+| Принципы (AP-1–AP-5) | FR/NFR | DR, AR, IR | TR, IR-T |
+| Candidate Roadmap (Phase B) | RC-1–RC-8 | ABB-01–ABB-11, сущности | TRC-1–TRC-7 |
 
 ---
 

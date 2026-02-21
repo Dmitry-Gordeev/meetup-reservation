@@ -188,7 +188,7 @@
 │  Development                                                    │
 │  - Локальная разработка: dotnet run, npm run dev (npm)           │
 │  - Локальный PostgreSQL или Docker                              │
-│  - SMTP: MailHog / Ethereal / заглушка                          │
+│  - SMTP: локальный (MailHog / Ethereal / заглушка)              │
 └─────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -293,7 +293,7 @@
 | Phase | Артефакт | Связь с Phase D |
 |-------|----------|-----------------|
 | **Phase A** | Принципы AP-1–AP-5, Scope, технологические ограничения | Technology Standards (TS-07), Technology Components (TC-01–TC-12) |
-| **Phase B** | Business Capabilities, FR/NFR, Candidate Roadmap | TR-01–TR-13, IR-T01–IR-T04 |
+| **Phase B** | Business Capabilities, FR/NFR, Candidate Roadmap | TR-01–TR-16, IR-T01–IR-T04 |
 | **Phase C** | Data Architecture (PostgreSQL, сущности), Application Architecture (ABB-01–ABB-11), DR/AR/IR | Platform Decomposition, Technology/Application Matrix, TR, IR-T |
 
 ---

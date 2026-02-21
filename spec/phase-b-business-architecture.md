@@ -98,7 +98,7 @@
 | **Организатор** | Создатель события | Регистрируется на платформе, создаёт события, управляет участниками, имеет публичный профиль |
 | **Посетитель (зарегистрированный)** | Участник с учётной записью | Имеет личный кабинет «Мои регистрации», автозаполнение данных, может отменить регистрацию |
 | **Посетитель (гость)** | Участник без учётной записи | Вводит данные при каждой регистрации, не может отменить в первой версии |
-| **Администратор платформы** | Оператор системы | Модерация, блокировка, управление пользователями и категориями; создаётся через скрипт |
+| **Администратор платформы** | Оператор системы | Модерация, блокировка, управление пользователями и категориями; создаётся через SQL-скрипт в `src/backend/db/` |
 
 ### 3.4 Actor/Role Matrix
 
@@ -262,7 +262,7 @@ Meetup Reservation — Business Functions
 | FR-01.2 | Регистрация участника (опционально) | Must |
 | FR-01.3 | Авторизация по email/паролю | Must |
 | FR-01.4 | Публичный профиль организатора (название, описание, аватар) | Must |
-| FR-01.5 | Создание первого администратора через скрипт | Must |
+| FR-01.5 | Создание первого администратора через SQL-скрипт в `src/backend/db/` | Must |
 | FR-01.6 | Восстановление пароля | Won't (след. фаза) |
 | FR-01.7 | Подтверждение email | Won't (след. фаза) |
 
@@ -381,15 +381,15 @@ Meetup Reservation — Business Functions
 
 ---
 
-## 7. Связь с Phase A
+## 7. Связь с Phase A, C и D
 
-| Phase A | Phase B |
-|---------|---------|
-| Stakeholders, модель пользователей | Actor/Role catalog, Actor/Role matrix |
-| High-level требования | Architecture Requirements Specification (детализированные FR/NFR) |
-| Scope, принципы | Business Capabilities, Business Processes |
-| Цели и ценность | Value Stream Map |
-| Out of Scope / Следующие фазы | Won't в Requirements, Candidate Roadmap |
+| Phase A | Phase B | Phase C / D |
+|---------|---------|-------------|
+| Stakeholders, модель пользователей | Actor/Role catalog, Actor/Role matrix | — |
+| High-level требования | Architecture Requirements Specification (детализированные FR/NFR) | DR, AR, IR, TR |
+| Scope, принципы | Business Capabilities, Business Processes | ABB, TC, TS |
+| Цели и ценность | Value Stream Map | — |
+| Out of Scope / Следующие фазы | Won't в Requirements, Candidate Roadmap | RC-1–RC-8, TRC-1–TRC-7 |
 
 ---
 
