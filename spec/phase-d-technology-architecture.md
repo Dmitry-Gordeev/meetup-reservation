@@ -21,8 +21,10 @@
 
 - **Backend:** ASP.NET Core (.NET 10), PostgreSQL, SQL-скрипты (без Entity Framework).
 - **Frontend:** React + TypeScript + Vite.
-- **Монорепозиторий:** backend и frontend в одном репозитории.
-- **Развёртывание и хостинг:** пока не определено (self-hosted / cloud / SaaS — решение в последующих фазах).
+- **Монорепозиторий:** backend и frontend в одном репозитории; структура: `src/backend/`, `src/frontend/`; SQL-скрипты — в `src/backend/db/`.
+- **Развёртывание и хостинг:** пока не определено (self-hosted / cloud / SaaS — решение в последующих фазах). Контейнеризация (Docker) — в следующих фазах.
+- **Тестирование:** только ручное в первой версии; автоматические тесты (unit, integration, e2e) — в следующих фазах.
+- **Rate limiting:** не в первой версии; в следующих фазах.
 
 ---
 
@@ -72,9 +74,9 @@
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                         УРОВЕНЬ ПРИЛОЖЕНИЙ (Application Tier)                        │
 │  ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│  │  Web Server / Reverse Proxy                                                   │   │
-│  │  - Статика (SPA), проксирование API                                          │   │
-│  │  - Nginx / Caddy / IIS / встроенный Kestrel (зависит от варианта развёртывания)│   │
+│  │  Web Server / Reverse Proxy (опционально)                                     │   │
+│  │  - Статика (SPA): Kestrel (UseStaticFiles) или Nginx/Caddy/IIS               │   │
+│  │  - Допускаются оба варианта в зависимости от окружения                       │   │
 │  └─────────────────────────────────────────────────────────────────────────────┘   │
 │                                          │                                           │
 │  ┌─────────────────────────────────────────────────────────────────────────────┐   │
@@ -109,12 +111,12 @@
 | TC-04 | **Data Access** | ADO.NET / Dapper | — | Доступ к БД без ORM |
 | TC-05 | **Frontend Framework** | React | 18+ | SPA, компонентный UI |
 | TC-06 | **Frontend Language** | TypeScript | 5+ | Типизация |
-| TC-07 | **Build Tool** | Vite | 5+ | Сборка frontend |
-| TC-08 | **Auth** | JWT (System.IdentityModel.Tokens.Jwt) | — | Токены, Bearer |
-| TC-09 | **Email** | SMTP | — | Отправка писем (MailKit / SmtpClient) |
-| TC-10 | **Export** | Библиотека Excel/PDF (ClosedXML, QuestPDF и т.п.) | — | Генерация отчётов |
-| TC-11 | **Reverse Proxy / Web Server** | Nginx / Caddy / IIS | — | Статика, проксирование (зависит от развёртывания) |
-| TC-12 | **Version Control** | Git | — | Монорепозиторий |
+| TC-07 | **Build Tool** | Vite | 5+ | Сборка frontend; пакетный менеджер — npm; Node.js 22 LTS |
+| TC-08 | **Auth** | JWT (System.IdentityModel.Tokens.Jwt), Argon2id (пароли) | — | Access token, срок жизни 1 ч; refresh token не используется |
+| TC-09 | **Email** | MailKit + SMTP | — | Отправка писем через MailKit; только локальный SMTP-сервер |
+| TC-10 | **Export** | ClosedXML (Excel), PdfSharp (PDF) | — | Генерация отчётов (список участников) |
+| TC-11 | **Раздача статики / Reverse Proxy** | Kestrel (UseStaticFiles) или Nginx/Caddy/IIS | — | Допускаются оба варианта в зависимости от окружения |
+| TC-12 | **Version Control** | Git | — | Монорепозиторий; структура `src/backend/`, `src/frontend/`; SQL-скрипты в `src/backend/db/` |
 
 ### 3.4 Technology Standards Catalog
 
@@ -122,14 +124,22 @@
 |----|----------|----------|----------|
 | TS-01 | **API версионирование** | Префикс `/api/v1/` для всех endpoints | Phase C |
 | TS-02 | **Пагинация** | Cursor-based (cursor, limit, nextCursor) | Phase C |
-| TS-03 | **Аутентификация** | JWT в заголовке `Authorization: Bearer <token>` | Phase C |
+| TS-03 | **Аутентификация** | JWT в заголовке `Authorization: Bearer <token>`; срок жизни access token — 1 час (без refresh token); секретный ключ — в конфигурационном файле (в первой версии) | Phase C |
 | TS-04 | **Формат данных** | JSON для запросов и ответов | Phase C |
 | TS-05 | **Дата/время** | UTC в БД и API; ISO 8601 в JSON | Phase C |
-| TS-06 | **Конфигурация** | Переменные окружения (connection strings, SMTP) | Phase C |
-| TS-07 | **Схема БД** | SQL-скрипты, без ORM | Phase A, C |
-| TS-08 | **Хранение файлов** | BLOB (bytea) в PostgreSQL в первой версии | Phase C |
+| TS-06 | **Конфигурация** | Backend: переменные окружения (connection strings, SMTP); секретный ключ JWT — в конфигурационном файле (в первой версии). Frontend: базовый URL API — конфигурационный файл (JSON) в `src/`, импорт при сборке | Phase C |
+| TS-07 | **Схема БД** | SQL-скрипты в `src/backend/db/`, без ORM; миграции — только ручные SQL-скрипты (без DbUp, Flyway и т.п.); создание первого администратора — SQL-скрипт в `src/backend/db/` | Phase A, C |
+| TS-08 | **Хранение файлов** | BLOB (bytea) в PostgreSQL в первой версии; максимальный размер загрузки — 50 MB; ограничений по типам файлов (MIME) в первой версии нет | Phase C |
 | TS-09 | **HTTPS** | Обязательно в production | NFR |
-| TS-10 | **CORS** | Настройка для SPA | Phase C |
+| TS-10 | **CORS** | В первой версии — разрешать любые origins (AllowAnyOrigin) | Phase C |
+| TS-11 | **Пакетный менеджер frontend** | npm; Node.js 22 LTS | Phase D |
+| TS-12 | **Хеширование паролей** | Argon2id (System.Security.Cryptography.Argon2, встроено в .NET 7+) | NFR-02 |
+| TS-13 | **Экспорт** | Excel — ClosedXML, PDF — PdfSharp | Phase C, FR-05 |
+| TS-14 | **SMTP** | MailKit для отправки; только локальный SMTP-сервер (внешние провайдеры не используются) | Phase D |
+| TS-15 | **Логирование** | ILogger (Microsoft.Extensions.Logging), без Serilog/NLog | Phase D |
+| TS-16 | **Раздача статики SPA** | Kestrel (UseStaticFiles) или reverse proxy (Nginx/Caddy/IIS) — в зависимости от окружения | Phase D |
+| TS-17 | **Тестирование** | Только ручное в первой версии; автоматические тесты — в следующих фазах | Phase D |
+| TS-18 | **Rate limiting** | Не в первой версии; в следующих фазах | Phase D |
 
 ### 3.5 Technology / Application Matrix
 
@@ -157,10 +167,10 @@
 
 | Вариант | Описание | Компоненты |
 |---------|----------|-------------|
-| **Self-hosted (VM)** | Развёртывание на собственных или арендованных виртуальных машинах | Linux/Windows VM, Nginx/Caddy, .NET runtime, PostgreSQL, SMTP (внешний или локальный) |
-| **Cloud (IaaS/PaaS)** | Azure, AWS, GCP, Yandex Cloud и т.п. | App Service / EC2 / Compute Engine, Managed PostgreSQL, SMTP-сервис |
-| **Container (Docker)** | Контейнеризация для гибкого развёртывания | Docker, docker-compose; образы backend, frontend (статический хостинг), PostgreSQL |
-| **SaaS** | Готовые платформы (Heroku, Railway, Render и т.п.) | Managed runtime, managed DB, add-on SMTP |
+| **Self-hosted (VM)** | Развёртывание на собственных или арендованных виртуальных машинах | Linux/Windows VM, Nginx/Caddy, .NET runtime, PostgreSQL, локальный SMTP-сервер |
+| **Cloud (IaaS/PaaS)** | Azure, AWS, GCP, Yandex Cloud и т.п. | App Service / EC2 / Compute Engine, Managed PostgreSQL, локальный SMTP (контейнер/VM) |
+| **Container (Docker)** | Контейнеризация — в следующих фазах | Docker, docker-compose (не в первой версии) |
+| **SaaS** | Готовые платформы (Heroku, Railway, Render и т.п.) | Managed runtime, managed DB; требуется возможность развёртывания локального SMTP (add-on или sidecar) |
 
 ### 4.2 Минимальные требования к окружению
 
@@ -176,7 +186,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Development                                                    │
-│  - Локальная разработка: dotnet run, npm run dev                │
+│  - Локальная разработка: dotnet run, npm run dev (npm)           │
 │  - Локальный PostgreSQL или Docker                              │
 │  - SMTP: MailHog / Ethereal / заглушка                          │
 └─────────────────────────────────────────────────────────────────┘
@@ -206,17 +216,17 @@
 |---|----------|--------|-----|
 | T1 | Нет runtime | ASP.NET Core (.NET 10) | Установка .NET SDK/runtime |
 | T2 | Нет СУБД | PostgreSQL | Установка и настройка PostgreSQL |
-| T3 | Нет frontend-сборки | React + Vite | Установка Node.js, npm/pnpm |
+| T3 | Нет frontend-сборки | React + Vite | Установка Node.js, npm |
 | T4 | Нет инфраструктуры | Web server, reverse proxy | Выбор и настройка (Nginx/Caddy/IIS) |
-| T5 | Нет SMTP | Email-сервис | Настройка SMTP (внешний провайдер или локальный) |
-| T6 | Нет развёртывания | CI/CD, контейнеры (опционально) | Решение в последующих фазах |
+| T5 | Нет SMTP | Email-сервис | Настройка локального SMTP-сервера |
+| T6 | Нет развёртывания | CI/CD; контейнеризация (Docker) — в следующих фазах | Решение в последующих фазах |
 | T7 | Нет мониторинга | Логирование, метрики | Решение в последующих фазах |
 
 ### 5.2 Выводы
 
 - Проект greenfield: все технологические компоненты создаются с нуля.
-- Критичные зависимости: .NET 10, PostgreSQL, Node.js (для сборки frontend), SMTP.
-- Развёртывание, мониторинг и резервное копирование — в scope последующих фаз.
+- Критичные зависимости: .NET 10, PostgreSQL, Node.js 22 LTS (для сборки frontend), SMTP.
+- Развёртывание, мониторинг и резервное копирование — в scope последующих фаз. Контейнеризация (Docker) — в следующих фазах. Автоматические тесты — в следующих фазах.
 
 ---
 
@@ -227,27 +237,31 @@
 | ID | Требование | Приоритет | Источник |
 |----|------------|-----------|----------|
 | TR-01 | Backend на ASP.NET Core (.NET 10) | Must | AP-1, AR-01 |
-| TR-02 | PostgreSQL 16+ как СУБД | Must | AP-2, DR-01 |
+| TR-02 | PostgreSQL 16+ как СУБД; миграции схемы — только ручные SQL-скрипты | Must | AP-2, DR-01 |
 | TR-03 | Доступ к БД через ADO.NET/Dapper, без ORM | Must | AP-3, DR-02 |
 | TR-04 | Frontend на React + TypeScript + Vite | Must | AP-4, AR-02 |
-| TR-05 | Node.js для сборки frontend (build-time) | Must | — |
-| TR-06 | JWT для аутентификации | Must | AR-04 |
-| TR-07 | SMTP для отправки email | Must | IR-03 |
-| TR-08 | Конфигурация через переменные окружения | Must | IR-04 |
+| TR-05 | Node.js 22 LTS и npm для сборки frontend (build-time) | Must | — |
+| TR-06 | JWT для аутентификации; access token, срок жизни 1 ч (без refresh token) | Must | AR-04 |
+| TR-06a | Хеширование паролей: Argon2id | Must | NFR-02 |
+| TR-07 | Отправка email через MailKit; только локальный SMTP-сервер | Must | IR-03 |
+| TR-08 | Backend: переменные окружения (connection strings, SMTP); секретный ключ JWT — в конфигурационном файле (в первой версии). Frontend: базовый URL API — конфигурационный файл (JSON) в `src/`, импорт при сборке | Must | IR-04 |
 | TR-09 | HTTPS в production | Must | NFR-02 |
 | TR-10 | Поддержка основных браузеров (Chrome, Firefox, Edge, Safari) | Must | NFR-03 |
-| TR-11 | Монорепозиторий (Git) | Must | AP-5 |
+| TR-11 | Монорепозиторий (Git), структура `src/backend/`, `src/frontend/`; SQL-скрипты в `src/backend/db/` | Must | AP-5 |
 | TR-12 | Резервное копирование БД | Should | NFR-02 |
-| TR-13 | Логирование ошибок и запросов | Should | Поддерживаемость |
+| TR-13 | Логирование: встроенный ILogger (Microsoft.Extensions.Logging) | Should | Поддерживаемость |
+| TR-14 | Экспорт: ClosedXML (Excel), PdfSharp (PDF) | Must | FR-05.4 |
+| TR-15 | Максимальный размер загружаемых файлов (фото, вложения, аватар) — 50 MB | Must | NFR |
+| TR-16 | Создание первого администратора — SQL-скрипт в `src/backend/db/` | Must | FR-01.5 |
 
 ### 6.2 Инфраструктурные требования
 
 | ID | Требование | Приоритет |
 |----|------------|-----------|
 | IR-T01 | Доступность PostgreSQL для backend | Must |
-| IR-T02 | Исходящий доступ к SMTP (порт 25/587) | Must |
+| IR-T02 | Локальный SMTP-сервер; исходящий доступ на localhost (порт 25/587) или на хост SMTP в той же сети | Must |
 | IR-T03 | Возможность обслуживания HTTPS | Must |
-| IR-T04 | Размещение статики frontend (SPA) | Must |
+| IR-T04 | Размещение статики frontend (SPA): Kestrel или reverse proxy | Must |
 
 ### 6.3 Сводка требований из Phase B и Phase C
 
@@ -264,13 +278,13 @@
 
 | # | Компонент | Описание | Зависимости |
 |---|------------|----------|-------------|
-| TRC-1 | **Technology Stack Setup** | Установка .NET 10, PostgreSQL, Node.js; создание монорепозитория | — |
-| TRC-2 | **Database Infrastructure** | PostgreSQL: установка, создание схемы (SQL-скрипты), индексы | TRC-1 |
+| TRC-1 | **Technology Stack Setup** | Установка .NET 10, PostgreSQL, Node.js 22 LTS, npm; создание монорепозитория | — |
+| TRC-2 | **Database Infrastructure** | PostgreSQL: установка, создание схемы (ручные SQL-скрипты в `src/backend/db/`), индексы; скрипт создания первого администратора в `src/backend/db/` | TRC-1 |
 | TRC-3 | **Backend Runtime** | ASP.NET Core приложение, Kestrel, модули | TRC-1 |
 | TRC-4 | **Frontend Build** | React + Vite, сборка статики | TRC-1 |
-| TRC-5 | **Email Infrastructure** | Настройка SMTP (провайдер или локальный сервис) | TRC-1 |
-| TRC-6 | **Web Server / Reverse Proxy** | Раздача статики, проксирование API | TRC-3, TRC-4 |
-| TRC-7 | **Deployment Pipeline** | CI/CD, выбор варианта развёртывания (TBD) | TRC-1–TRC-6 |
+| TRC-5 | **Email Infrastructure** | Настройка локального SMTP-сервера | TRC-1 |
+| TRC-6 | **Раздача статики / Reverse Proxy** | Kestrel (UseStaticFiles) или Nginx/Caddy/IIS — в зависимости от окружения | TRC-3, TRC-4 |
+| TRC-7 | **Deployment Pipeline** | CI/CD, выбор варианта развёртывания (TBD); Docker — в следующих фазах | TRC-1–TRC-6 |
 
 ---
 
