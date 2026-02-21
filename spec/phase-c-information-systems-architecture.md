@@ -41,7 +41,8 @@
 
 **СУБД:** PostgreSQL  
 **Управление схемой:** SQL-скрипты, миграции вручную или через скрипты  
-**Подход:** без ORM (Entity Framework не используется)
+**Подход:** без ORM (Entity Framework не используется)  
+**Хранение файлов:** в первой версии — в БД в виде BLOB (bytea); фото событий, вложения, аватар организатора в соответствующих таблицах
 
 ### 2.3 Logical Data Model
 
@@ -54,22 +55,28 @@
 │ id (PK)         │────<│ user_id (PK, FK)     │     │ id (PK)         │
 │ email           │     │ name                 │     │ name            │
 │ password_hash   │     │ description          │     │ is_archived     │
-│ role            │     │ avatar_url           │     │ sort_order      │
-│ is_blocked      │     └──────────────────────┘     └────────┬────────┘
-│ created_at      │                                           │
-└────────┬────────┘                                           │
-         │                                                    │
-         │     ┌──────────────────────┐                       │
-         └────<│ participant_profiles │                       │
-               ├──────────────────────┤                       │
-               │ user_id (PK, FK)      │                       │
-               │ first_name           │                       │
-               │ last_name            │                       │
-               │ middle_name          │                       │
-               │ email                │                       │
-               │ phone                │                       │
-               └──────────────────────┘                       │
-                                                               │
+│ is_blocked      │     │ avatar_content(BLOB)│     │ sort_order      │
+│ created_at      │     │ avatar_content_type │     └────────┬────────┘
+└────────┬────────┘     │ avatar_file_name    │
+         │              └──────────────────────┘
+         │     ┌──────────────────────┐
+         └────<│    user_roles        │
+               ├──────────────────────┤
+               │ user_id (PK, FK)     │
+               │ role (PK)            │
+               └──────────────────────┘
+         │
+         │     ┌──────────────────────┐     ┌─────────────────┐
+         └────<│ participant_profiles │     │    categories   │
+               ├──────────────────────┤     ├─────────────────┤
+               │ user_id (PK, FK)      │     │ id (PK)         │
+               │ first_name           │     │ name            │
+               │ last_name            │     │ is_archived     │
+               │ middle_name          │     │ sort_order      │
+               │ email                │     └────────┬────────┘
+               │ phone                │              │
+               └──────────────────────┘              │
+                                                    │
 ┌─────────────────┐     ┌──────────────────────┐               │
 │     events      │     │  event_categories    │               │
 ├─────────────────┤     ├──────────────────────┤               │
@@ -109,7 +116,9 @@
 ├─────────────────┤     ├──────────────────────┤
 │ id (PK)         │     │ id (PK)              │
 │ event_id (FK)   │     │ event_id (FK)        │
-│ url             │     │ url                  │
+│ content (BLOB)  │     │ content (BLOB)       │
+│ content_type    │     │ content_type         │
+│ file_name       │     │ file_name            │
 │ sort_order      │     │ type (program, etc)  │
 └─────────────────┘     └──────────────────────┘
 ```
@@ -118,16 +127,17 @@
 
 | Сущность | Описание | Ключевые атрибуты |
 |----------|----------|-------------------|
-| **users** | Пользователи платформы (организаторы, участники, администраторы) | id, email, password_hash, role (organizer/participant/admin), is_blocked, created_at |
-| **organizer_profiles** | Публичный профиль организатора | user_id, name, description, avatar_url |
+| **users** | Пользователи платформы | id, email, password_hash, is_blocked, created_at |
+| **user_roles** | Роли пользователей (M:N) | user_id, role (organizer/participant/admin); один пользователь может иметь несколько ролей |
+| **organizer_profiles** | Публичный профиль организатора | user_id, name, description, avatar_content (BLOB), avatar_content_type, avatar_file_name |
 | **participant_profiles** | Профиль участника для автозаполнения | user_id, first_name, last_name, middle_name, email, phone |
 | **categories** | Категории событий (фиксированный список) | id, name, is_archived, sort_order |
-| **events** | События | id, organizer_id, title, description, start_at, end_at, location, is_online, is_public, status (active/cancelled/blocked), created_at |
+| **events** | События | id, organizer_id, title, description, start_at, end_at (UTC), location, is_online, is_public, status (active/cancelled/blocked), created_at |
 | **event_categories** | Связь событие–категория (M:N) | event_id, category_id |
 | **ticket_types** | Типы билетов события | id, event_id, name, price, capacity |
 | **registrations** | Регистрации на мероприятия | id, event_id, ticket_type_id, user_id (null для гостей), email, first_name, last_name, middle_name, phone, status (registered/checked_in/cancelled), checked_in_at, created_at |
-| **event_images** | Фото события | id, event_id, url, sort_order |
-| **event_attachments** | Вложения (программа и т.п.) | id, event_id, url, type |
+| **event_images** | Фото события | id, event_id, content (BLOB), content_type, file_name, sort_order |
+| **event_attachments** | Вложения (программа и т.п.) | id, event_id, content (BLOB), content_type, file_name, type |
 
 #### 2.3.3 Бизнес-правила в модели данных
 
@@ -138,12 +148,15 @@
 | Изоляция по организаторам | Все запросы событий/участников фильтруются по organizer_id |
 | Архивные категории | is_archived в categories; при создании события доступны только неархивные |
 | Статусы события | status: active, cancelled, blocked |
+| Роли пользователей | Таблица user_roles (user_id, role); один пользователь может иметь несколько ролей (organizer, participant, admin) |
+| Дата/время | start_at, end_at, created_at, checked_in_at хранятся в UTC; конвертация в локальное время на клиенте |
 
 ### 2.4 Data Entity / Business Function Matrix
 
 | Сущность | BC-01 Учётные записи | BC-02 Категории | BC-03 События | BC-04 Каталог | BC-05 Регистрация | BC-06 Участники | BC-07 Уведомления | BC-08 Экспорт | BC-09 Модерация | BC-10 ЛК участника |
 |----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | users | ● | | ● | | ● | | | | ● | ● |
+| user_roles | ● | | | | | | | | ● | |
 | organizer_profiles | ● | | ● | ● | | | | | | |
 | participant_profiles | ● | | | | ● | | | | | ● |
 | categories | | ● | ● | ● | | | | | ● | |
@@ -216,7 +229,7 @@
 |----|-----------|------------|----------|
 | ABB-01 | **Frontend SPA** | React, TypeScript, Vite | Клиентское приложение; маршрутизация, формы, запросы к API |
 | ABB-02 | **Backend API** | ASP.NET Core (.NET 10) | REST API; контроллеры, middleware, валидация |
-| ABB-03 | **Auth Module** | ASP.NET Core Identity / JWT | Регистрация, авторизация, роли (organizer, participant, admin) |
+| ABB-03 | **Auth Module** | ASP.NET Core + JWT | Регистрация, авторизация по JWT (токен в заголовке Authorization), роли (organizer, participant, admin) |
 | ABB-04 | **Events Module** | ASP.NET Core | CRUD событий, типы билетов, категории, изображения |
 | ABB-05 | **Registrations Module** | ASP.NET Core | Регистрация на мероприятия, проверка дублей, оплата-заглушка |
 | ABB-06 | **Notifications Module** | ASP.NET Core + SMTP | Отправка email (подтверждение, напоминания, отмена) |
@@ -252,25 +265,37 @@
 
 ### 3.3 Основные интерфейсы (API)
 
+**Пагинация каталога:** cursor-based (параметры `cursor`, `limit`; ответ содержит `nextCursor` для следующей страницы).
+
+**Версионирование API:** префикс `/api/v1/` для всех endpoints.
+
+**Регистрация на платформе:** один endpoint `/api/v1/auth/register` с параметром `role` (organizer | participant).
+
+**Аутентификация:** JWT; токен передаётся в заголовке `Authorization: Bearer <token>`.
+
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| POST | /api/auth/register | Регистрация |
-| POST | /api/auth/login | Вход |
-| GET | /api/events | Список событий (каталог, фильтры, сортировка) |
-| GET | /api/events/{id} | Детали события |
-| GET | /api/organizers/{id}/events | События организатора |
-| POST | /api/events | Создание события (organizer) |
-| POST | /api/events/{id}/cancel | Отмена события |
-| POST | /api/events/{id}/registrations | Регистрация на мероприятие |
-| GET | /api/events/{id}/registrations | Список участников (organizer) |
-| PATCH | /api/registrations/{id}/check-in | Чек-ин |
-| DELETE | /api/registrations/{id} | Отмена регистрации |
-| GET | /api/me/registrations | Мои регистрации |
-| GET | /api/events/{id}/registrations/export | Экспорт Excel/PDF |
-| GET/POST/PATCH | /api/admin/categories | Управление категориями |
-| GET/PATCH | /api/admin/users | Управление пользователями |
-| PATCH | /api/admin/events/{id}/block | Блокировка события |
-| PATCH | /api/admin/organizers/{id}/block | Блокировка организатора |
+| POST | /api/v1/auth/register | Регистрация (один endpoint; параметр role: organizer | participant) |
+| POST | /api/v1/auth/login | Вход |
+| GET | /api/v1/events | Список событий (каталог, фильтры, сортировка, пагинация по cursor) |
+| GET | /api/v1/events/{id} | Детали события |
+| GET | /api/v1/organizers/{id}/events | События организатора |
+| POST | /api/v1/events | Создание события (organizer) |
+| POST | /api/v1/events/{id}/cancel | Отмена события |
+| POST | /api/v1/events/{id}/registrations | Регистрация на мероприятие |
+| GET | /api/v1/events/{id}/registrations | Список участников (organizer) |
+| PATCH | /api/v1/registrations/{id}/check-in | Чек-ин |
+| DELETE | /api/v1/registrations/{id} | Отмена регистрации |
+| GET | /api/v1/me/registrations | Мои регистрации |
+| GET | /api/v1/events/{id}/registrations/export | Экспорт Excel/PDF |
+| GET/POST/PATCH | /api/v1/admin/categories | Управление категориями |
+| GET | /api/v1/admin/users | Список пользователей |
+| PATCH | /api/v1/admin/events/{id}/block | Блокировка события |
+| PATCH | /api/v1/admin/events/{id}/unblock | Разблокировка события |
+| PATCH | /api/v1/admin/organizers/{id}/block | Блокировка организатора |
+| PATCH | /api/v1/admin/organizers/{id}/unblock | Разблокировка организатора |
+| PATCH | /api/v1/admin/users/{id}/block | Блокировка пользователя (участника) |
+| PATCH | /api/v1/admin/users/{id}/unblock | Разблокировка пользователя |
 
 ---
 
@@ -314,6 +339,8 @@
 | DR-04 | UNIQUE(event_id, email) для запрета дублей | Must |
 | DR-05 | Индексы для каталога (фильтрация, сортировка) | Must |
 | DR-06 | Изоляция данных по organizer_id | Must |
+| DR-07 | Хранение файлов (фото событий, вложения, аватар организатора) в БД в виде BLOB (bytea) в первой версии | Must |
+| DR-08 | Дата/время (start_at, end_at, created_at, checked_in_at) хранятся в UTC | Must |
 
 ### 5.2 Требования к приложениям
 
@@ -322,11 +349,13 @@
 | AR-01 | Backend на ASP.NET Core (.NET 10) | Must |
 | AR-02 | Frontend на React + TypeScript + Vite | Must |
 | AR-03 | REST API, JSON | Must |
-| AR-04 | Аутентификация: JWT или cookie-сессии | Must |
+| AR-04 | Аутентификация: JWT (токен в заголовке Authorization: Bearer) | Must |
 | AR-05 | Роли: organizer, participant, admin | Must |
 | AR-06 | CORS для SPA | Must |
 | AR-07 | Валидация на backend | Must |
 | AR-08 | Обработка ошибок, коды HTTP | Must |
+| AR-09 | Пагинация каталога событий: cursor-based (cursor, limit, nextCursor) | Must |
+| AR-10 | Версионирование API: префикс /api/v1/ | Must |
 
 ### 5.3 Интеграционные требования
 
