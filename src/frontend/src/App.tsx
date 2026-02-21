@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import AdminPage from './pages/AdminPage'
 import CatalogPage from './pages/CatalogPage'
 import EventPage from './pages/EventPage'
 import HomePage from './pages/HomePage'
@@ -17,6 +18,7 @@ function App() {
       <Route path="/organizers/:id" element={<OrganizerPage />} />
       <Route path="/organizer/create" element={<OrganizerCabinetPage />} />
       <Route path="/me/registrations" element={<MyRegistrationsPage />} />
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
     </Routes>

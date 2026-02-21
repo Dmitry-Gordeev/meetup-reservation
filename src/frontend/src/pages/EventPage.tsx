@@ -35,6 +35,17 @@ interface ParticipantProfile {
   phone: string | null
 }
 
+interface Registration {
+  id: number
+  firstName: string
+  lastName: string
+  middleName: string | null
+  email: string
+  phone: string | null
+  status: string
+  checkedInAt: string | null
+}
+
 function formatDate(s: string) {
   const d = new Date(s)
   return d.toLocaleString('ru-RU', {
@@ -53,6 +64,11 @@ export default function EventPage() {
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [me, setMe] = useState<{ id: string } | null>(null)
+  const [participants, setParticipants] = useState<Registration[]>([])
+  const [participantsLoading, setParticipantsLoading] = useState(false)
+  const [actionId, setActionId] = useState<number | null>(null)
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null)
 
   const [ticketTypeId, setTicketTypeId] = useState<number | null>(null)
   const [email, setEmail] = useState('')
@@ -100,6 +116,73 @@ export default function EventPage() {
     loadProfile()
   }, [loadProfile])
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiFetch('/me')
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setMe)
+        .catch(() => setMe(null))
+    } else {
+      setMe(null)
+    }
+  }, [isAuthenticated])
+
+  const loadParticipants = useCallback(() => {
+    if (!id || !me) return
+    setParticipantsLoading(true)
+    apiFetch(`/events/${id}/registrations`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Forbidden')
+        return r.json()
+      })
+      .then(setParticipants)
+      .catch(() => setParticipants([]))
+      .finally(() => setParticipantsLoading(false))
+  }, [id, me])
+
+  useEffect(() => {
+    if (event && me && Number(event.organizerId) === Number(me.id)) {
+      loadParticipants()
+    } else {
+      setParticipants([])
+    }
+  }, [event, me, loadParticipants])
+
+  async function handleCheckIn(regId: number) {
+    setActionId(regId)
+    try {
+      const res = await apiFetch(`/registrations/${regId}/check-in`, { method: 'PATCH' })
+      if (res.ok) loadParticipants()
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  async function handleCancelRegistration(regId: number) {
+    setActionId(regId)
+    setConfirmCancelId(null)
+    try {
+      const res = await apiFetch(`/registrations/${regId}`, { method: 'DELETE' })
+      if (res.ok) loadParticipants()
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  function handleExport(format: 'xlsx' | 'pdf') {
+    if (!event) return
+    apiFetch(`/events/${event.id}/registrations/export?format=${format}`)
+      .then((r) => r.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${event.title}.${format === 'xlsx' ? 'xlsx' : 'pdf'}`
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+  }
+
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     if (!event || !ticketTypeId) return
@@ -145,6 +228,7 @@ export default function EventPage() {
   if (error || !event) return <p style={{ padding: '2rem', color: 'red' }}>{error || 'Событие не найдено'}</p>
 
   const canRegister = event.status === 'active' && event.ticketTypes.length > 0
+  const isOrganizer = me && Number(event.organizerId) === Number(me.id)
 
   return (
     <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
@@ -334,6 +418,108 @@ export default function EventPage() {
             </form>
           </div>
         )
+      )}
+
+      {isOrganizer && (
+        <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: 8 }}>
+          <h3>Участники</h3>
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleExport('xlsx')}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.9rem' }}
+            >
+              Экспорт Excel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExport('pdf')}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.9rem' }}
+            >
+              Экспорт PDF
+            </button>
+          </div>
+          {participantsLoading ? (
+            <p>Загрузка участников...</p>
+          ) : participants.length === 0 ? (
+            <p style={{ color: '#666' }}>Пока нет зарегистрированных участников.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+                    <th style={{ padding: '0.5rem' }}>ФИО</th>
+                    <th style={{ padding: '0.5rem' }}>Email</th>
+                    <th style={{ padding: '0.5rem' }}>Телефон</th>
+                    <th style={{ padding: '0.5rem' }}>Чек-ин</th>
+                    <th style={{ padding: '0.5rem' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants.map((reg) => {
+                    const fullName = [reg.lastName, reg.firstName, reg.middleName].filter(Boolean).join(' ')
+                    return (
+                      <tr key={reg.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '0.5rem' }}>{fullName}</td>
+                        <td style={{ padding: '0.5rem' }}>{reg.email}</td>
+                        <td style={{ padding: '0.5rem' }}>{reg.phone ?? '—'}</td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {reg.status === 'checked_in' ? (
+                            <span style={{ color: '#2e7d32' }}>✓ Да</span>
+                          ) : (
+                            <span style={{ color: '#666' }}>Нет</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {confirmCancelId === reg.id ? (
+                              <span style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelRegistration(reg.id)}
+                                  disabled={actionId !== null}
+                                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', color: '#c62828' }}
+                                >
+                                  Да
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmCancelId(null)}
+                                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem' }}
+                                >
+                                  Нет
+                                </button>
+                              </span>
+                            ) : (
+                              <>
+                                {reg.status !== 'checked_in' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCheckIn(reg.id)}
+                                    disabled={actionId !== null}
+                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', marginRight: '0.25rem' }}
+                                  >
+                                    {actionId === reg.id ? '...' : 'Чек-ин'}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmCancelId(reg.id)}
+                                  disabled={actionId !== null}
+                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', color: '#c62828' }}
+                                >
+                                  Отменить
+                                </button>
+                              </>
+                            )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
