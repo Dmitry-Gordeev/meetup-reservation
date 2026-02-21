@@ -92,8 +92,50 @@ example.com {
 
 ## Переменные окружения (production)
 
+Backend читает конфигурацию из переменных окружения (приоритет над appsettings). Синтаксис: `Section__Key` (двойное подчёркивание).
+
 | Переменная | Описание |
 |------------|----------|
 | `ConnectionStrings__DefaultConnection` | Строка подключения к PostgreSQL |
-| `Jwt__SecretKey` | Секретный ключ для JWT |
-| `Smtp__Host`, `Smtp__Port`, `Smtp__User`, `Smtp__Password` | Настройки SMTP |
+| `Jwt__SecretKey` | Секретный ключ для JWT (обязательно в production) |
+| `Jwt__Issuer`, `Jwt__Audience` | Опционально, по умолчанию MeetupReservation |
+| `Smtp__Host` | Хост SMTP-сервера |
+| `Smtp__Port` | Порт (25, 587 и т.д.) |
+| `Smtp__UseSsl` | true/false |
+| `Smtp__UserName`, `Smtp__Password` | Учётные данные SMTP |
+| `Smtp__From` | Адрес отправителя (noreply@...) |
+
+Пример (Linux/macOS):
+```bash
+export ConnectionStrings__DefaultConnection="Host=db;Database=meetup;Username=app;Password=secret"
+export Jwt__SecretKey="your-secret-key-min-32-characters-long"
+export Smtp__Host="smtp.example.com"
+export Smtp__Port="587"
+export Smtp__UseSsl="true"
+export Smtp__UserName="noreply"
+export Smtp__Password="secret"
+export Smtp__From="noreply@example.com"
+```
+
+---
+
+## Frontend: API URL (config.json)
+
+Файл `src/frontend/src/config.json` задаёт базовый URL API. Импортируется при сборке.
+
+| apiBaseUrl | Сценарий |
+|------------|----------|
+| `""` (пусто) | Production (SPA и API на одном домене) или dev с Vite proxy |
+| `"https://api.example.com"` | API на отдельном домене — указать перед `npm run build` |
+
+Пример для cross-origin:
+```json
+{"apiBaseUrl": "https://api.example.com"}
+```
+
+Сборка с правильным URL:
+```bash
+# Перед сборкой отредактировать config.json при необходимости
+cd src/frontend
+npm run build
+```
