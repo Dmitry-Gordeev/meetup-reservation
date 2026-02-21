@@ -161,6 +161,7 @@ Meetup Reservation — веб-платформа для организации, 
 - Управление пользователями: просмотр, блокировка.
 - Управление категориями: добавление и редактирование фиксированного списка категорий через интерфейс.
 
+
 #### Автоматизация
 
 - Уведомления по email (подтверждение регистрации, напоминания за день/час); SMS — в следующих фазах.
@@ -188,4 +189,4 @@ Meetup Reservation — веб-платформа для организации, 
 
 ---
 
-*Документ подготовлен на основе [basic-requirements.md](./basic-requirements.md) в формате TOGAF Phase A (Architecture Vision).*
+*Документ подготовлен на основе [basic-requirements.md](./basic-requirements.md) в формате TOGAF Phase A (Architecture Vision). Следующий этап: [Phase B: Business Architecture](./phase-b-business-architecture.md).*
