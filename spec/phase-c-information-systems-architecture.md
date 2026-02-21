@@ -389,4 +389,4 @@
 
 ---
 
-*Документ подготовлен в формате TOGAF Phase C (Information Systems Architectures) на основе [Phase A](./phase-a-architecture-vision.md) и [Phase B](./phase-b-business-architecture.md).*
+*Документ подготовлен в формате TOGAF Phase C (Information Systems Architectures) на основе [Phase A](./phase-a-architecture-vision.md) и [Phase B](./phase-b-business-architecture.md). Следующий этап: [Phase D: Technology Architecture](./phase-d-technology-architecture.md).*
