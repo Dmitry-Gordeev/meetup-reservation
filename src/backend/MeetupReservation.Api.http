@@ -1,6 +1,40 @@
 @MeetupReservation.Api_HostAddress = http://localhost:5275
 
-GET {{MeetupReservation.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health
+GET {{MeetupReservation.Api_HostAddress}}/health
 
-###
+### Register (organizer)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "organizer@example.com",
+  "password": "Password123!",
+  "role": "organizer",
+  "name": "Test Organizer"
+}
+
+### Register (participant)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "participant@example.com",
+  "password": "Password123!",
+  "role": "participant",
+  "firstName": "Иван",
+  "lastName": "Иванов"
+}
+
+### Login
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizer@example.com",
+  "password": "Password123!"
+}
+
+### Me (requires token - replace TOKEN with value from login)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/me
+Authorization: Bearer TOKEN
