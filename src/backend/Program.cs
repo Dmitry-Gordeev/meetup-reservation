@@ -1,3 +1,6 @@
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
 using Npgsql;
 using Dapper;
 
@@ -32,6 +35,30 @@ app.MapGet("/api/v1/db/test", async (IConfiguration config) =>
 
     var result = await conn.QueryFirstOrDefaultAsync<int>("SELECT 1");
     return Results.Json(new { value = result });
+});
+
+app.MapPost("/api/v1/email/test", async (IConfiguration config) =>
+{
+    var host = config["Smtp:Host"] ?? "localhost";
+    var port = config.GetValue<int>("Smtp:Port", 1025);
+    var useSsl = config.GetValue<bool>("Smtp:UseSsl", false);
+    var userName = config["Smtp:UserName"];
+    var password = config["Smtp:Password"];
+
+    var message = new MimeMessage();
+    message.From.Add(MailboxAddress.Parse("noreply@meetup-reservation.local"));
+    message.To.Add(MailboxAddress.Parse("test@example.com"));
+    message.Subject = "Meetup Reservation — тестовое письмо";
+    message.Body = new TextPart("plain") { Text = "Тестовое письмо отправлено успешно." };
+
+    using var client = new SmtpClient();
+    await client.ConnectAsync(host, port, useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None);
+    if (!string.IsNullOrEmpty(userName))
+        await client.AuthenticateAsync(userName, password ?? "");
+    await client.SendAsync(message);
+    await client.DisconnectAsync(true);
+
+    return Results.Json(new { sent = true });
 });
 
 app.Run();
