@@ -10,6 +10,7 @@ using Npgsql;
 using Dapper;
 using MeetupReservation.Api.Auth;
 using MeetupReservation.Api.Events;
+using MeetupReservation.Api.Registrations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<AuthService>(sp => new AuthService(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<EventsService>(sp => new EventsService(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<RegistrationsService>(sp => new RegistrationsService(sp.GetRequiredService<IConfiguration>()));
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -142,6 +144,15 @@ app.MapGet("/api/v1/me", [Microsoft.AspNetCore.Authorization.Authorize] (ClaimsP
     return Results.Ok(new { id = userId, email, roles });
 }).RequireAuthorization();
 
+app.MapGet("/api/v1/me/profile", [Microsoft.AspNetCore.Authorization.Authorize] async (ClaimsPrincipal user, RegistrationsService registrations) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+    var profile = await registrations.GetParticipantProfileAsync(userId);
+    return profile != null ? Results.Ok(profile) : Results.NotFound();
+}).RequireAuthorization();
+
 app.MapPost("/api/v1/events", [Microsoft.AspNetCore.Authorization.Authorize] async (CreateEventRequest req, ClaimsPrincipal user, EventsService events) =>
 {
     var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -222,6 +233,25 @@ app.MapGet("/api/v1/categories", async (EventsService events) =>
 {
     var categories = await events.GetCategoriesAsync();
     return Results.Ok(categories);
+});
+
+app.MapPost("/api/v1/events/{id:long}/registrations", async (long id, CreateRegistrationRequest req, ClaimsPrincipal user, RegistrationsService registrations) =>
+{
+    long? userId = null;
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr != null && long.TryParse(userIdStr, out var uid))
+        userId = uid;
+
+    var result = await registrations.CreateRegistrationAsync(id, req, userId);
+    return result.StatusCode switch
+    {
+        201 => Results.Created($"/api/v1/registrations/{result.Id}", new { id = result.Id }),
+        404 => Results.NotFound(new { error = result.Error }),
+        409 => Results.Conflict(new { error = result.Error }),
+        402 => Results.Json(new { error = result.Error }, statusCode: 402),
+        400 => Results.BadRequest(new { error = result.Error }),
+        _ => Results.Json(new { error = result.Error ?? "Error" }, statusCode: result.StatusCode)
+    };
 });
 
 app.MapPost("/api/v1/events/{id:long}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, EventsService events) =>

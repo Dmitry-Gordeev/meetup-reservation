@@ -76,6 +76,19 @@ GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1
 POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/cancel
 Authorization: Bearer TOKEN
 
+### Register for Event (guest or logged in)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/registrations
+Content-Type: application/json
+
+{
+  "ticketTypeId": 1,
+  "email": "guest@example.com",
+  "firstName": "Иван",
+  "lastName": "Иванов",
+  "phone": "+79001234567",
+  "paymentCompleted": true
+}
+
 ### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
 # POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
 # Authorization: Bearer TOKEN
