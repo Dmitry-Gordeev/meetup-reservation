@@ -108,6 +108,48 @@ Authorization: Bearer TOKEN
 GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/registrations/export?format=pdf
 Authorization: Bearer TOKEN
 
+### Admin: Get Users (admin only, replace TOKEN)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/admin/users
+Authorization: Bearer TOKEN
+
+### Admin: Block/Unblock Event (replace TOKEN and EVENT_ID)
+PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/admin/events/1/block
+Authorization: Bearer TOKEN
+
+PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/admin/events/1/unblock
+Authorization: Bearer TOKEN
+
+### Admin: Block/Unblock Organizer (replace TOKEN and ORGANIZER_USER_ID)
+PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/admin/organizers/1/block
+Authorization: Bearer TOKEN
+
+### Admin: Block/Unblock User (replace TOKEN and USER_ID)
+PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/admin/users/1/block
+Authorization: Bearer TOKEN
+
+### Admin: Categories CRUD (replace TOKEN)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/admin/categories
+Authorization: Bearer TOKEN
+
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/admin/categories
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+{
+  "name": "Новая категория",
+  "sortOrder": 10
+}
+
+PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/admin/categories/1
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+{
+  "name": "Обновлённое название",
+  "isArchived": false,
+  "sortOrder": 5
+}
+
 ### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
 # POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
 # Authorization: Bearer TOKEN

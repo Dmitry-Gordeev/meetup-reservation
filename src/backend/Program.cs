@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using MimeKit;
 using Npgsql;
 using Dapper;
+using MeetupReservation.Api.Admin;
 using MeetupReservation.Api.Auth;
 using MeetupReservation.Api.Events;
 using MeetupReservation.Api.Export;
@@ -32,6 +33,11 @@ builder.Services.AddSingleton<AuthService>(sp => new AuthService(sp.GetRequiredS
 builder.Services.AddSingleton<EventsService>(sp => new EventsService(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<RegistrationsService>(sp => new RegistrationsService(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<EmailService>()));
 builder.Services.AddSingleton<ExportService>(sp => new ExportService(sp.GetRequiredService<RegistrationsService>(), sp.GetRequiredService<EventsService>()));
+builder.Services.AddSingleton<AdminService>(sp => new AdminService(
+    sp.GetRequiredService<IConfiguration>(),
+    sp.GetRequiredService<EmailService>(),
+    sp.GetRequiredService<RegistrationsService>(),
+    sp.GetRequiredService<EventsService>()));
 builder.Services.AddHostedService<MeetupReservation.Api.Notifications.ReminderBackgroundService>();
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");
@@ -50,7 +56,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
+});
 
 var app = builder.Build();
 
@@ -343,6 +352,79 @@ app.MapGet("/api/v1/events/{id:long}/registrations/export", [Microsoft.AspNetCor
     return Results.File(result.Value.content, result.Value.contentType, result.Value.fileName);
 }).RequireAuthorization();
 
+// WP-3.3: Admin endpoints (admin role only)
+app.MapGet("/api/v1/admin/users", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (AdminService admin) =>
+{
+    var items = await admin.GetUsersAsync();
+    return Results.Ok(items);
+});
+
+app.MapPatch("/api/v1/admin/events/{id:long}/block", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, AdminService admin) =>
+{
+    var result = await admin.BlockEventAsync(id);
+    if (result == null) return Results.NotFound();
+    if (result == false) return Results.BadRequest(new { error = "Event is not active" });
+    return Results.Ok(new { status = "blocked" });
+});
+
+app.MapPatch("/api/v1/admin/events/{id:long}/unblock", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, AdminService admin) =>
+{
+    var result = await admin.UnblockEventAsync(id);
+    if (result == null) return Results.NotFound();
+    if (result == false) return Results.BadRequest(new { error = "Event is not blocked" });
+    return Results.Ok(new { status = "active" });
+});
+
+app.MapPatch("/api/v1/admin/organizers/{id:long}/block", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, AdminService admin) =>
+{
+    var result = await admin.BlockOrganizerAsync(id);
+    if (result == null) return Results.NotFound();
+    return Results.Ok(new { status = "blocked" });
+});
+
+app.MapPatch("/api/v1/admin/organizers/{id:long}/unblock", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, AdminService admin) =>
+{
+    var result = await admin.UnblockOrganizerAsync(id);
+    if (result == null) return Results.NotFound();
+    return Results.Ok(new { status = "unblocked" });
+});
+
+app.MapPatch("/api/v1/admin/users/{id:long}/block", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, AdminService admin) =>
+{
+    var result = await admin.BlockUserAsync(id);
+    if (result == null) return Results.NotFound();
+    return Results.Ok(new { status = "blocked" });
+});
+
+app.MapPatch("/api/v1/admin/users/{id:long}/unblock", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, AdminService admin) =>
+{
+    var result = await admin.UnblockUserAsync(id);
+    if (result == null) return Results.NotFound();
+    return Results.Ok(new { status = "unblocked" });
+});
+
+app.MapGet("/api/v1/admin/categories", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (AdminService admin) =>
+{
+    var items = await admin.GetCategoriesAsync();
+    return Results.Ok(items);
+});
+
+app.MapPost("/api/v1/admin/categories", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (CreateCategoryRequest req, AdminService admin) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Name)) return Results.BadRequest(new { error = "Name is required" });
+    var id = await admin.CreateCategoryAsync(req.Name, req.SortOrder ?? 0);
+    if (id == null) return Results.Conflict(new { error = "Category with this name already exists" });
+    return Results.Created($"/api/v1/admin/categories/{id}", new { id });
+});
+
+app.MapPatch("/api/v1/admin/categories/{id:long}", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (long id, UpdateCategoryRequest req, AdminService admin) =>
+{
+    var result = await admin.UpdateCategoryAsync(id, req.Name, req.IsArchived, req.SortOrder);
+    if (result == null) return Results.NotFound();
+    if (result == false) return Results.BadRequest(new { error = "No changes or invalid data" });
+    return Results.Ok(new { status = "updated" });
+});
+
 app.MapPost("/api/v1/events/{id:long}/images", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, HttpContext http, EventsService events) =>
 {
     var userIdStr = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -375,3 +457,5 @@ app.Run();
 
 record RegisterRequest(string Email, string Password, string Role, string? Name, string? FirstName, string? LastName);
 record LoginRequest(string Email, string Password);
+record CreateCategoryRequest(string Name, int? SortOrder);
+record UpdateCategoryRequest(string? Name, bool? IsArchived, int? SortOrder);
