@@ -174,6 +174,25 @@ public class RegistrationsService
             profile.email,
             profile.phone);
     }
+
+    /// <summary>
+    /// WP-2.5.1: Регистрации залогиненного пользователя (по user_id или по email).
+    /// </summary>
+    public async Task<MyRegistrationDto[]> GetMyRegistrationsAsync(long userId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        var userEmail = await GetUserEmailAsync(conn, userId);
+        var rows = await conn.QueryAsync<(long id, long event_id, string event_title, DateTime start_at, string ticket_type_name, string status)>(
+            @"SELECT r.id, r.event_id, e.title, e.start_at, tt.name, r.status
+              FROM meetup.registrations r
+              JOIN meetup.events e ON e.id = r.event_id
+              JOIN meetup.ticket_types tt ON tt.id = r.ticket_type_id
+              WHERE r.status IN ('registered', 'checked_in')
+              AND (r.user_id = @UserId OR (r.user_id IS NULL AND LOWER(r.email) = LOWER(@UserEmail)))",
+            new { UserId = userId, UserEmail = userEmail ?? "" });
+        return rows.Select(r => new MyRegistrationDto(r.id, r.event_id, r.event_title, r.start_at, r.ticket_type_name, r.status)).ToArray();
+    }
 }
 
 public record CreateRegistrationRequest(
@@ -190,3 +209,5 @@ public record RegistrationResult(long? Id = null, string? Error = null, int Stat
 public record ParticipantProfileDto(string FirstName, string LastName, string? MiddleName, string Email, string? Phone);
 
 public record CancelRegistrationResult(bool Success = false, bool Forbidden = false);
+
+public record MyRegistrationDto(long Id, long EventId, string EventTitle, DateTime StartAt, string TicketTypeName, string Status);

@@ -157,6 +157,15 @@ app.MapGet("/api/v1/me/profile", [Microsoft.AspNetCore.Authorization.Authorize] 
     return profile != null ? Results.Ok(profile) : Results.NotFound();
 }).RequireAuthorization();
 
+app.MapGet("/api/v1/me/registrations", [Microsoft.AspNetCore.Authorization.Authorize] async (ClaimsPrincipal user, RegistrationsService registrations) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+    var items = await registrations.GetMyRegistrationsAsync(userId);
+    return Results.Ok(items);
+}).RequireAuthorization();
+
 app.MapPost("/api/v1/events", [Microsoft.AspNetCore.Authorization.Authorize] async (CreateEventRequest req, ClaimsPrincipal user, EventsService events) =>
 {
     var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
