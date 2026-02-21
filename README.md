@@ -14,3 +14,7 @@ Frontend собирается автоматически при `dotnet build` �
 ## Развёртывание
 
 Варианты раздачи статики и reverse proxy (Nginx, Caddy) описаны в [docs/deployment.md](docs/deployment.md).
+
+## Тестирование
+
+Чек-лист ручного тестирования по FR-01–FR-09: [docs/testing-checklist.md](docs/testing-checklist.md).
