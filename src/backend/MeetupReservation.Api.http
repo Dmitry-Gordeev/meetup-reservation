@@ -1,6 +1,83 @@
 @MeetupReservation.Api_HostAddress = http://localhost:5275
 
-GET {{MeetupReservation.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health
+GET {{MeetupReservation.Api_HostAddress}}/health
 
-###
+### Register (organizer)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "organizer@example.com",
+  "password": "Password123!",
+  "role": "organizer",
+  "name": "Test Organizer"
+}
+
+### Register (participant)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "participant@example.com",
+  "password": "Password123!",
+  "role": "participant",
+  "firstName": "Иван",
+  "lastName": "Иванов"
+}
+
+### Login
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizer@example.com",
+  "password": "Password123!"
+}
+
+### Me (requires token - replace TOKEN with value from login)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/me
+Authorization: Bearer TOKEN
+
+### Create Event (organizer, replace TOKEN)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/events
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+{
+  "title": "Тестовая конференция",
+  "description": "Описание события",
+  "startAt": "2025-04-01T10:00:00Z",
+  "endAt": "2025-04-01T18:00:00Z",
+  "location": "Москва",
+  "isOnline": false,
+  "isPublic": true,
+  "ticketTypes": [
+    { "name": "Стандарт", "price": 0, "capacity": 100 }
+  ],
+  "categoryIds": [1, 2]
+}
+
+### Get Events List (catalog, cursor pagination)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events?limit=10&sortBy=startAt
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events?limit=10&sortBy=createdAt
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events?limit=10&categoryIds=1,2
+
+### Get Organizer Events
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/organizers/1/events
+
+### Get Organizer Profile
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/organizers/1
+
+### Get Event (public)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1
+
+### Cancel Event (organizer, replace TOKEN and EVENT_ID)
+POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/cancel
+Authorization: Bearer TOKEN
+
+### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
+# POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
+# Authorization: Bearer TOKEN
+# Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+# (use REST Client or curl with -F "image=@path/to/image.jpg")

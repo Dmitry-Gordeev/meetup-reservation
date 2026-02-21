@@ -1,8 +1,15 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using MimeKit;
 using Npgsql;
 using Dapper;
+using MeetupReservation.Api.Auth;
+using MeetupReservation.Api.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,9 +23,33 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<AuthService>(sp => new AuthService(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<EventsService>(sp => new EventsService(sp.GetRequiredService<IConfiguration>()));
+
+var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "MeetupReservation",
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "MeetupReservation",
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 app.UseCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseHttpsRedirection();
 
@@ -61,4 +92,177 @@ app.MapPost("/api/v1/email/test", async (IConfiguration config) =>
     return Results.Json(new { sent = true });
 });
 
+app.MapPost("/api/v1/auth/register", async (RegisterRequest req, AuthService auth) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { error = "Email and password are required" });
+
+    if (req.Role is not "organizer" and not "participant")
+        return Results.BadRequest(new { error = "Role must be 'organizer' or 'participant'" });
+
+    if (req.Role == "organizer" && string.IsNullOrWhiteSpace(req.Name))
+        return Results.BadRequest(new { error = "Name is required for organizer" });
+
+    if (req.Role == "participant" && (string.IsNullOrWhiteSpace(req.FirstName) || string.IsNullOrWhiteSpace(req.LastName)))
+        return Results.BadRequest(new { error = "FirstName and LastName are required for participant" });
+
+    if (await auth.EmailExistsAsync(req.Email.Trim()))
+        return Results.Conflict(new { error = "Email already registered" });
+
+    var passwordHash = AuthService.HashPassword(req.Password);
+    var userId = await auth.RegisterAsync(
+        req.Email.Trim().ToLowerInvariant(),
+        passwordHash,
+        req.Role,
+        req.Name?.Trim(),
+        req.FirstName?.Trim(),
+        req.LastName?.Trim());
+
+    return Results.Created("/api/v1/auth/register", new { id = userId, email = req.Email.Trim(), role = req.Role });
+});
+
+app.MapPost("/api/v1/auth/login", async (LoginRequest req, AuthService auth) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { error = "Email and password are required" });
+
+    var user = await auth.GetUserForLoginAsync(req.Email.Trim().ToLowerInvariant());
+    if (user == null || !AuthService.VerifyPassword(req.Password, user.Value.passwordHash))
+        return Results.Unauthorized();
+
+    var token = auth.GenerateJwt(user.Value.userId, user.Value.email, user.Value.roles);
+    return Results.Ok(new { token });
+});
+
+app.MapGet("/api/v1/me", [Microsoft.AspNetCore.Authorization.Authorize] (ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    var email = user.FindFirstValue(ClaimTypes.Email);
+    var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
+    return Results.Ok(new { id = userId, email, roles });
+}).RequireAuthorization();
+
+app.MapPost("/api/v1/events", [Microsoft.AspNetCore.Authorization.Authorize] async (CreateEventRequest req, ClaimsPrincipal user, EventsService events) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    if (!await events.IsOrganizerAsync(userId))
+        return Results.Forbid();
+
+    if (string.IsNullOrWhiteSpace(req.Title))
+        return Results.BadRequest(new { error = "Title is required" });
+
+    if (req.TicketTypes == null || req.TicketTypes.Length == 0)
+        return Results.BadRequest(new { error = "At least one ticket type is required" });
+
+    foreach (var tt in req.TicketTypes)
+    {
+        if (string.IsNullOrWhiteSpace(tt.Name) || tt.Capacity <= 0)
+            return Results.BadRequest(new { error = "Each ticket type must have name and capacity > 0" });
+    }
+
+    if (req.CategoryIds != null)
+    {
+        foreach (var catId in req.CategoryIds)
+        {
+            if (!await events.CategoryExistsAsync(catId))
+                return Results.BadRequest(new { error = $"Category {catId} not found or archived" });
+        }
+    }
+
+    var eventId = await events.CreateEventAsync(userId, req);
+    return Results.Created($"/api/v1/events/{eventId}", new { id = eventId });
+}).RequireAuthorization();
+
+app.MapGet("/api/v1/events", async (string? cursor, int? limit, string? categoryIds, string? sortBy, EventsService events) =>
+{
+    var limitVal = limit ?? 20;
+    long[]? catIds = null;
+    if (!string.IsNullOrEmpty(categoryIds))
+    {
+        var parts = categoryIds.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var parsed = new List<long>();
+        foreach (var p in parts)
+            if (long.TryParse(p.Trim(), out var id)) parsed.Add(id);
+        if (parsed.Count > 0) catIds = parsed.ToArray();
+    }
+    var result = await events.GetEventsListAsync(cursor, limitVal, catIds, sortBy);
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/v1/events/{id:long}", async (long id, EventsService events) =>
+{
+    var evt = await events.GetEventByIdAsync(id);
+    return evt != null ? Results.Ok(evt) : Results.NotFound();
+});
+
+app.MapGet("/api/v1/organizers/{id:long}/events", async (long id, EventsService events) =>
+{
+    var (items, organizerExists) = await events.GetOrganizerEventsAsync(id);
+    if (!organizerExists) return Results.NotFound();
+    return Results.Ok(items);
+});
+
+app.MapGet("/api/v1/organizers/{id:long}", async (long id, EventsService events) =>
+{
+    var profile = await events.GetOrganizerProfileAsync(id);
+    return profile != null ? Results.Ok(profile) : Results.NotFound();
+});
+
+app.MapGet("/api/v1/organizers/{id:long}/avatar", async (long id, EventsService events) =>
+{
+    var avatar = await events.GetOrganizerAvatarAsync(id);
+    if (avatar == null) return Results.NotFound();
+    return Results.File(avatar.Value.content, avatar.Value.contentType);
+});
+
+app.MapGet("/api/v1/categories", async (EventsService events) =>
+{
+    var categories = await events.GetCategoriesAsync();
+    return Results.Ok(categories);
+});
+
+app.MapPost("/api/v1/events/{id:long}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, EventsService events) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var cancelled = await events.CancelEventAsync(id, userId);
+    return cancelled ? Results.Ok(new { status = "cancelled" }) : Results.NotFound();
+}).RequireAuthorization();
+
+app.MapPost("/api/v1/events/{id:long}/images", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, HttpContext http, EventsService events) =>
+{
+    var userIdStr = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var form = await http.Request.ReadFormAsync();
+    var file = form.Files.GetFile("image") ?? form.Files.FirstOrDefault();
+    if (file == null)
+        return Results.BadRequest(new { error = "Image file is required" });
+
+    await using var stream = file.OpenReadStream();
+    using var ms = new MemoryStream();
+    await stream.CopyToAsync(ms);
+    var content = ms.ToArray();
+
+    try
+    {
+        var contentType = file.ContentType ?? "application/octet-stream";
+        var imageId = await events.AddEventImageAsync(id, userId, content, contentType, file.FileName, 0);
+        return Results.Created($"/api/v1/events/{id}/images/{imageId}", new { id = imageId });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.NotFound();
+    }
+}).RequireAuthorization();
+
 app.Run();
+
+record RegisterRequest(string Email, string Password, string Role, string? Name, string? FirstName, string? LastName);
+record LoginRequest(string Email, string Password);
