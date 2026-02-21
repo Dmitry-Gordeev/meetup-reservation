@@ -54,10 +54,13 @@ export default function CatalogPage() {
       setLoading(true)
       setError('')
       try {
+        const effectiveCategoryIds = categoryIdsParam
+          ? categoryIdsParam.split(',').map((s) => s.trim()).filter(Boolean)
+          : []
         const params = new URLSearchParams()
         params.set('limit', '10')
         if (sortBy) params.set('sortBy', sortBy)
-        if (categoryIds.length > 0) params.set('categoryIds', categoryIds.join(','))
+        if (effectiveCategoryIds.length > 0) params.set('categoryIds', effectiveCategoryIds.join(','))
         if (cursor) params.set('cursor', cursor)
 
         const res = await apiFetch(`/events?${params}`)
@@ -75,7 +78,7 @@ export default function CatalogPage() {
         setLoading(false)
       }
     },
-    [categoryIds, sortBy]
+    [categoryIdsParam, sortBy]
   )
 
   useEffect(() => {
