@@ -353,6 +353,12 @@ app.MapGet("/api/v1/events/{id:long}/registrations/export", [Microsoft.AspNetCor
 }).RequireAuthorization();
 
 // WP-3.3: Admin endpoints (admin role only)
+app.MapGet("/api/v1/admin/events", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (AdminService admin) =>
+{
+    var items = await admin.GetEventsForModerationAsync();
+    return Results.Ok(items);
+});
+
 app.MapGet("/api/v1/admin/users", [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")] async (AdminService admin) =>
 {
     var items = await admin.GetUsersAsync();

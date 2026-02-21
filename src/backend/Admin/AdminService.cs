@@ -47,6 +47,18 @@ public class AdminService
         return rows > 0 ? true : await EventExistsAsync(conn, eventId) ? (bool?)false : null;
     }
 
+    public async Task<AdminEventDto[]> GetEventsForModerationAsync()
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var rows = await conn.QueryAsync<(long id, long organizer_id, string title, DateTime start_at, string status, string? organizer_name)>(
+            @"SELECT e.id, e.organizer_id, e.title, e.start_at, e.status, op.name
+              FROM meetup.events e
+              LEFT JOIN meetup.organizer_profiles op ON op.user_id = e.organizer_id
+              WHERE e.status IN ('active', 'blocked')
+              ORDER BY e.start_at ASC");
+        return rows.Select(r => new AdminEventDto(r.id, r.organizer_id, r.title, r.start_at, r.status, r.organizer_name)).ToArray();
+    }
+
     public async Task<bool?> UnblockEventAsync(long eventId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -206,3 +218,4 @@ public class AdminService
 
 public record AdminUserDto(long Id, string Email, bool IsBlocked, string[] Roles);
 public record AdminCategoryDto(long Id, string Name, bool IsArchived, int SortOrder);
+public record AdminEventDto(long Id, long OrganizerId, string Title, DateTime StartAt, string Status, string? OrganizerName);

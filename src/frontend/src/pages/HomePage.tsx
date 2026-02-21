@@ -32,6 +32,11 @@ export default function HomePage() {
             Мои регистрации
           </Link>
         )}
+        {isAuthenticated && me?.roles?.includes('admin') && (
+          <Link to="/admin" style={{ marginRight: '1rem' }}>
+            Админ-панель
+          </Link>
+        )}
         {isAuthenticated ? (
           <button onClick={logout} style={{ marginRight: '1rem' }}>
             Выйти

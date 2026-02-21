@@ -108,6 +108,10 @@ Authorization: Bearer TOKEN
 GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/registrations/export?format=pdf
 Authorization: Bearer TOKEN
 
+### Admin: Get Events (admin only, replace TOKEN)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/admin/events
+Authorization: Bearer TOKEN
+
 ### Admin: Get Users (admin only, replace TOKEN)
 GET {{MeetupReservation.Api_HostAddress}}/api/v1/admin/users
 Authorization: Bearer TOKEN
