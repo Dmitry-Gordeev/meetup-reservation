@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiFetch } from '../api/client'
+import { apiFetch, getApiUrl } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 
 interface Category {
@@ -128,7 +128,7 @@ export default function OrganizerCabinetPage() {
         const formData = new FormData()
         formData.append('image', imageFile)
         const token = localStorage.getItem('meetup_token')
-        const imgRes = await fetch(`/api/v1/events/${eventId}/images`, {
+        const imgRes = await fetch(getApiUrl(`/events/${eventId}/images`), {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,

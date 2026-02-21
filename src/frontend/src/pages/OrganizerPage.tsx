@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { apiFetch } from '../api/client'
+import { apiFetch, getApiUrl } from '../api/client'
 
 interface OrganizerProfile {
   id: number
@@ -59,7 +59,7 @@ export default function OrganizerPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem' }}>
         {profile.hasAvatar && (
           <img
-            src={`/api/v1/organizers/${id}/avatar`}
+            src={getApiUrl(`/organizers/${id}/avatar`)}
             alt={profile.name}
             style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }}
           />

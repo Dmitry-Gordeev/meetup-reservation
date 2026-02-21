@@ -1,4 +1,12 @@
+import config from '../config.json'
+
 const TOKEN_KEY = 'meetup_token'
+const API_BASE = (config.apiBaseUrl ?? '').replace(/\/$/, '')
+
+/** Полный URL для API (для fetch, img src и т.д.) */
+export function getApiUrl(path: string): string {
+  return `${API_BASE}/api/v1${path.startsWith('/') ? path : '/' + path}`
+}
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -24,5 +32,5 @@ export async function apiFetch(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
-  return fetch(`/api/v1${path.startsWith('/') ? path : '/' + path}`, { ...options, headers })
+  return fetch(getApiUrl(path), { ...options, headers })
 }

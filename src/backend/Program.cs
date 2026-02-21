@@ -70,6 +70,9 @@ app.UseAuthorization();
 
 app.UseHttpsRedirection();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapGet("/health", () => Results.Ok()).WithName("HealthCheck");
 
 app.MapGet("/api/v1/db/test", async (IConfiguration config) =>
@@ -458,6 +461,8 @@ app.MapPost("/api/v1/events/{id:long}/images", [Microsoft.AspNetCore.Authorizati
         return Results.NotFound();
     }
 }).RequireAuthorization();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
