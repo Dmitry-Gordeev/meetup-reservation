@@ -101,6 +101,13 @@ Authorization: Bearer TOKEN
 PATCH {{MeetupReservation.Api_HostAddress}}/api/v1/registrations/1/check-in
 Authorization: Bearer TOKEN
 
+### Export Registrations (organizer only, replace TOKEN and EVENT_ID)
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/registrations/export?format=xlsx
+Authorization: Bearer TOKEN
+
+GET {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/registrations/export?format=pdf
+Authorization: Bearer TOKEN
+
 ### Upload Event Image (organizer, replace TOKEN, EVENT_ID and path to image)
 # POST {{MeetupReservation.Api_HostAddress}}/api/v1/events/1/images
 # Authorization: Bearer TOKEN

@@ -10,6 +10,7 @@ using Npgsql;
 using Dapper;
 using MeetupReservation.Api.Auth;
 using MeetupReservation.Api.Events;
+using MeetupReservation.Api.Export;
 using MeetupReservation.Api.Notifications;
 using static MeetupReservation.Api.Notifications.EmailTemplates;
 using MeetupReservation.Api.Registrations;
@@ -30,6 +31,7 @@ builder.Services.AddSingleton<EmailService>(sp => new EmailService(sp.GetRequire
 builder.Services.AddSingleton<AuthService>(sp => new AuthService(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<EventsService>(sp => new EventsService(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<RegistrationsService>(sp => new RegistrationsService(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<EmailService>()));
+builder.Services.AddSingleton<ExportService>(sp => new ExportService(sp.GetRequiredService<RegistrationsService>(), sp.GetRequiredService<EventsService>()));
 builder.Services.AddHostedService<MeetupReservation.Api.Notifications.ReminderBackgroundService>();
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");
@@ -327,6 +329,18 @@ app.MapGet("/api/v1/events/{id:long}/registrations", [Microsoft.AspNetCore.Autho
     var items = await registrations.GetEventRegistrationsForOrganizerAsync(id, userId);
     if (items == null) return Results.NotFound();
     return Results.Ok(items);
+}).RequireAuthorization();
+
+app.MapGet("/api/v1/events/{id:long}/registrations/export", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, string? format, ClaimsPrincipal user, ExportService export) =>
+{
+    var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userIdStr == null || !long.TryParse(userIdStr, out var userId))
+        return Results.Unauthorized();
+
+    var fmt = format ?? "xlsx";
+    var result = await export.ExportAsync(id, userId, fmt);
+    if (result == null) return Results.NotFound();
+    return Results.File(result.Value.content, result.Value.contentType, result.Value.fileName);
 }).RequireAuthorization();
 
 app.MapPost("/api/v1/events/{id:long}/images", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, HttpContext http, EventsService events) =>
