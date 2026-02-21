@@ -372,7 +372,7 @@ Meetup Reservation — Business Functions
 |---|------------|----------|-------------|
 | RC-1 | Backend API | ASP.NET Core, PostgreSQL, SQL-скрипты | — |
 | RC-2 | Frontend SPA | React + TypeScript + Vite | RC-1 |
-| RC-3 | Аутентификация и авторизация | JWT/сессии, роли | RC-1 |
+| RC-3 | Аутентификация и авторизация | JWT, роли (user_roles) | RC-1 |
 | RC-4 | Модуль событий | CRUD, типы билетов, категории | RC-1, RC-3 |
 | RC-5 | Модуль регистраций | Регистрация, проверка дублей, оплата-заглушка | RC-1, RC-4 |
 | RC-6 | Модуль уведомлений | Email-сервис | RC-1 |
