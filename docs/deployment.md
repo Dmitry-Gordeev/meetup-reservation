@@ -1,5 +1,19 @@
 # Развёртывание Meetup Reservation
 
+## Выбор варианта развёртывания (WP-4.3.1)
+
+Согласно Phase D, доступны три варианта:
+
+| Вариант | Описание | Когда выбирать |
+|---------|----------|----------------|
+| **Self-hosted (VM)** | Linux/Windows VM, Nginx/Caddy, .NET runtime, PostgreSQL, локальный SMTP | Собственная или арендованная инфраструктура, полный контроль |
+| **Cloud (IaaS/PaaS)** | Azure, AWS, GCP, Yandex Cloud — App Service / EC2 / Compute Engine, Managed PostgreSQL | Managed-сервисы, масштабирование |
+| **SaaS** | Heroku, Railway, Render и т.п. | Быстрый старт, минимальный DevOps |
+
+**Рекомендуемый вариант для первой версии:** Self-hosted (VM) — простая схема, без vendor lock-in, все компоненты (Nginx/Caddy, .NET, PostgreSQL, SMTP) разворачиваются на одной или нескольких VM. Альтернативы (Cloud, SaaS) поддерживаются тем же артефактом сборки и переменными окружения.
+
+---
+
 ## Вариант 1: Kestrel (по умолчанию)
 
 Backend отдаёт SPA и API из одного процесса. Сборка копирует `frontend/dist` в `wwwroot`, Kestrel раздаёт статику и проксирует SPA-маршруты на `index.html`.
