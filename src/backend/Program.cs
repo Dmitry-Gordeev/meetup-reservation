@@ -211,6 +211,12 @@ app.MapGet("/api/v1/organizers/{id:long}", async (long id, EventsService events)
     return profile != null ? Results.Ok(profile) : Results.NotFound();
 });
 
+app.MapGet("/api/v1/categories", async (EventsService events) =>
+{
+    var categories = await events.GetCategoriesAsync();
+    return Results.Ok(categories);
+});
+
 app.MapPost("/api/v1/events/{id:long}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (long id, ClaimsPrincipal user, EventsService events) =>
 {
     var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);

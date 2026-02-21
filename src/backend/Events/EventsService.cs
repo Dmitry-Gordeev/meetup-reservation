@@ -322,6 +322,14 @@ public class EventsService
         }).ToArray(), true);
     }
 
+    public async Task<CategoryDto[]> GetCategoriesAsync()
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var items = await conn.QueryAsync<CategoryDto>(
+            "SELECT id, name FROM meetup.categories WHERE is_archived = false ORDER BY sort_order, id");
+        return items.ToArray();
+    }
+
     public async Task<OrganizerProfileDto?> GetOrganizerProfileAsync(long organizerId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -354,6 +362,8 @@ public record EventListItemDto
 }
 
 public record OrganizerProfileDto(long Id, string Name, string? Description);
+
+public record CategoryDto(long Id, string Name);
 
 public record CreateEventRequest(
     string Title,

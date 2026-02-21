@@ -19,6 +19,9 @@ export default function HomePage() {
     <div style={{ maxWidth: 800, margin: '2rem auto', padding: '1rem' }}>
       <h1>Meetup Reservation</h1>
       <nav style={{ marginBottom: '2rem' }}>
+        <Link to="/events" style={{ marginRight: '1rem' }}>
+          Каталог
+        </Link>
         {isAuthenticated ? (
           <button onClick={logout} style={{ marginRight: '1rem' }}>
             Выйти
