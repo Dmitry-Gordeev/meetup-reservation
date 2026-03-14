@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
+import { Button, Card, PageContainer, SelectInput, StatusMessage } from '../components/ui'
 
 interface EventItem {
   id: number
@@ -114,17 +115,17 @@ export default function CatalogPage() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '2rem auto', padding: '1rem' }}>
-      <p style={{ marginBottom: '1rem' }}>
+    <PageContainer size="lg" className="stack-lg">
+      <p>
         <Link to="/">← На главную</Link>
       </p>
       <h1>Каталог событий</h1>
 
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ marginBottom: '0.5rem' }}>
+      <section className="surface-card stack" aria-label="Фильтры каталога">
+        <div>
           <strong>Категории:</strong>{' '}
           {categories.map((c) => (
-            <label key={c.id} style={{ marginRight: '1rem' }}>
+            <label key={c.id} className="checkbox-row" style={{ display: 'inline-flex', marginRight: '1rem' }}>
               <input
                 type="checkbox"
                 checked={categoryIds.includes(String(c.id))}
@@ -134,62 +135,57 @@ export default function CatalogPage() {
             </label>
           ))}
         </div>
-        <label>
-          Сортировка{' '}
-          <select
+        <label className="field">
+          <span className="field__label">Сортировка</span>
+          <SelectInput
             value={sortBy}
             onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-            style={{ padding: '0.5rem' }}
           >
             <option value="startAt">По дате проведения</option>
             <option value="createdAt">По дате создания</option>
-          </select>
+          </SelectInput>
         </label>
-      </div>
+      </section>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && (
+        <StatusMessage tone="error" role="alert">
+          {error}
+        </StatusMessage>
+      )}
 
       {loading && events.length === 0 ? (
         <p>Загрузка...</p>
       ) : events.length === 0 ? (
-        <p>Событий пока нет</p>
+        <StatusMessage tone="muted">Событий пока нет</StatusMessage>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} className="stack">
           {events.map((evt) => (
-            <li
-              key={evt.id}
-              style={{
-                border: '1px solid #ccc',
-                borderRadius: 8,
-                padding: '1rem',
-                marginBottom: '1rem',
-              }}
-            >
-              <Link to={`/events/${evt.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <h3 style={{ margin: '0 0 0.5rem' }}>{evt.title}</h3>
-              </Link>
-              <p style={{ margin: '0.25rem 0', color: '#666', fontSize: '0.9rem' }}>
-                {formatDate(evt.startAt)} — {evt.location || (evt.isOnline ? 'Онлайн' : '—')}
-              </p>
-              {evt.organizerName && (
-                <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>
-                  Организатор: <Link to={`/organizers/${evt.organizerId}`}>{evt.organizerName}</Link>
+            <li key={evt.id}>
+              <Card>
+                <Link to={`/events/${evt.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <h3 style={{ marginBottom: '0.5rem' }}>{evt.title}</h3>
+                </Link>
+                <p className="muted" style={{ margin: '0 0 0.25rem 0', fontSize: '0.92rem' }}>
+                  {formatDate(evt.startAt)} — {evt.location || (evt.isOnline ? 'Онлайн' : '—')}
                 </p>
-              )}
+                {evt.organizerName && (
+                  <p style={{ margin: 0, fontSize: '0.92rem' }}>
+                    Организатор: <Link to={`/organizers/${evt.organizerId}`}>{evt.organizerName}</Link>
+                  </p>
+                )}
+              </Card>
             </li>
           ))}
         </ul>
       )}
 
       {nextCursor && (
-        <button
-          onClick={handleLoadMore}
-          disabled={loading}
-          style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}
-        >
-          {loading ? 'Загрузка...' : 'Далее'}
-        </button>
+        <div>
+          <Button onClick={handleLoadMore} disabled={loading}>
+            {loading ? 'Загрузка...' : 'Далее'}
+          </Button>
+        </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

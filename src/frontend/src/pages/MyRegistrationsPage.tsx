@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { Button, Card, PageContainer, StatusMessage } from '../components/ui'
 
 interface Registration {
   id: number
@@ -75,45 +76,42 @@ export default function MyRegistrationsPage() {
   if (!isAuthenticated) return null
 
   return (
-    <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
-      <p style={{ marginBottom: '1rem' }}>
+    <PageContainer size="md" className="stack-lg">
+      <p>
         <Link to="/">← Главная</Link>
       </p>
 
       <h1>Мои регистрации</h1>
 
-      {loading && <p style={{ padding: '1rem 0' }}>Загрузка...</p>}
-      {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
+      {loading && <p>Загрузка...</p>}
+      {error && (
+        <StatusMessage tone="error" role="alert">
+          {error}
+        </StatusMessage>
+      )}
 
       {!loading && !error && registrations.length === 0 && (
-        <p style={{ color: '#666', marginTop: '1rem' }}>
+        <StatusMessage tone="muted">
           У вас пока нет регистраций на мероприятия.{' '}
           <Link to="/events">Перейти в каталог</Link>
-        </p>
+        </StatusMessage>
       )}
 
       {!loading && registrations.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} className="stack">
           {registrations.map((reg) => (
-            <li
-              key={reg.id}
-              style={{
-                border: '1px solid #ddd',
-                borderRadius: 8,
-                padding: '1rem',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+            <li key={reg.id}>
+              <Card>
+                <div className="cluster" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
                 <div>
                   <Link to={`/events/${reg.eventId}`} style={{ fontWeight: 600, fontSize: '1.1rem' }}>
                     {reg.eventTitle}
                   </Link>
-                  <p style={{ margin: '0.25rem 0 0 0', color: '#666', fontSize: '0.9rem' }}>
+                  <p className="muted" style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
                     {formatDate(reg.startAt)} · {reg.ticketTypeName}
                   </p>
                   {reg.status === 'checked_in' && (
-                    <span style={{ display: 'inline-block', marginTop: '0.5rem', fontSize: '0.85rem', color: '#2e7d32' }}>
+                    <span style={{ display: 'inline-block', marginTop: '0.5rem', fontSize: '0.85rem', color: '#177245' }}>
                       ✓ Отмечен на мероприятии
                     </span>
                   )}
@@ -126,34 +124,35 @@ export default function MyRegistrationsPage() {
                         type="button"
                         onClick={() => handleCancel(reg.id)}
                         disabled={cancellingId !== null}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', color: '#c62828' }}
+                        className="btn btn--danger btn--sm"
                       >
                         Да
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmCancelId(null)}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                        className="btn btn--secondary btn--sm"
                       >
                         Нет
                       </button>
                     </div>
                   ) : (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setConfirmCancelId(reg.id)}
                       disabled={cancellingId !== null}
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.9rem' }}
+                      size="sm"
                     >
                       {cancellingId === reg.id ? 'Отмена...' : 'Отменить регистрацию'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
+              </Card>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   )
 }

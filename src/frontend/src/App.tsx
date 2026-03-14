@@ -11,17 +11,24 @@ import RegisterPage from './pages/RegisterPage'
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/events" element={<CatalogPage />} />
-      <Route path="/events/:id" element={<EventPage />} />
-      <Route path="/organizers/:id" element={<OrganizerPage />} />
-      <Route path="/organizer/create" element={<OrganizerCabinetPage />} />
-      <Route path="/me/registrations" element={<MyRegistrationsPage />} />
-      <Route path="/admin" element={<AdminPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-    </Routes>
+    <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Перейти к содержимому
+      </a>
+      <main id="main-content" className="page-main">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/events" element={<CatalogPage />} />
+          <Route path="/events/:id" element={<EventPage />} />
+          <Route path="/organizers/:id" element={<OrganizerPage />} />
+          <Route path="/organizer/create" element={<OrganizerCabinetPage />} />
+          <Route path="/me/registrations" element={<MyRegistrationsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Routes>
+      </main>
+    </div>
   )
 }
 
