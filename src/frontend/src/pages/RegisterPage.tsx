@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getApiUrl } from '../api/client'
+import { Button, FormField, PageContainer, SelectInput, StatusMessage, TextInput } from '../components/ui'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -50,92 +51,83 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '2rem auto', padding: '1rem' }}>
+    <PageContainer size="sm">
       <h1>Регистрация</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Email <input
+      <form onSubmit={handleSubmit} className="surface-card stack">
+        <FormField label="Email" htmlFor="register-email" required>
+          <TextInput
+            id="register-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Пароль <input
+          />
+        </FormField>
+        <FormField label="Пароль" htmlFor="register-password" required>
+          <TextInput
+            id="register-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
               autoComplete="new-password"
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Роль{' '}
-            <select
+          />
+        </FormField>
+        <FormField label="Роль" htmlFor="register-role">
+          <SelectInput
+            id="register-role"
               value={role}
               onChange={(e) => setRole(e.target.value as 'organizer' | 'participant')}
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            >
+          >
               <option value="participant">Участник</option>
               <option value="organizer">Организатор</option>
-            </select>
-          </label>
-        </div>
+          </SelectInput>
+        </FormField>
         {role === 'organizer' && (
-          <div style={{ marginBottom: '1rem' }}>
-            <label>
-              Имя / Название <input
+          <FormField label="Имя / Название" htmlFor="register-org-name">
+            <TextInput
+                id="register-org-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Название организации или имя"
-                style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-              />
-            </label>
-          </div>
+            />
+          </FormField>
         )}
         {role === 'participant' && (
           <>
-            <div style={{ marginBottom: '1rem' }}>
-              <label>
-                Имя <input
+            <FormField label="Имя" htmlFor="register-first-name">
+              <TextInput
+                  id="register-first-name"
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-                />
-              </label>
-            </div>
-            <div style={{ marginBottom: '1rem' }}>
-              <label>
-                Фамилия <input
+              />
+            </FormField>
+            <FormField label="Фамилия" htmlFor="register-last-name">
+              <TextInput
+                  id="register-last-name"
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-                />
-              </label>
-            </div>
+              />
+            </FormField>
           </>
         )}
-        {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ padding: '0.5rem 1rem' }}>
+        {error && (
+          <StatusMessage tone="error" role="alert">
+            {error}
+          </StatusMessage>
+        )}
+        <Button type="submit" variant="primary" disabled={loading}>
           {loading ? 'Регистрация...' : 'Зарегистрироваться'}
-        </button>
+        </Button>
       </form>
-      <p style={{ marginTop: '1rem' }}>
+      <p style={{ marginTop: '1rem' }} className="muted">
         Уже есть аккаунт? <Link to="/login">Войти</Link>
       </p>
-    </div>
+    </PageContainer>
   )
 }

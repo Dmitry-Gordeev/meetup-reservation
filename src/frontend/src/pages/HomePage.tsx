@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { Button, PageContainer, StatusMessage } from '../components/ui'
 
 export default function HomePage() {
   const { isAuthenticated, logout } = useAuth()
@@ -16,34 +17,34 @@ export default function HomePage() {
   }, [isAuthenticated])
 
   return (
-    <div style={{ maxWidth: 800, margin: '2rem auto', padding: '1rem' }}>
+    <PageContainer size="md">
       <h1>Meetup Reservation</h1>
-      <nav style={{ marginBottom: '2rem' }}>
-        <Link to="/events" style={{ marginRight: '1rem' }}>
+      <nav className="cluster" style={{ marginBottom: '1.5rem' }} aria-label="Главная навигация">
+        <Link to="/events">
           Каталог
         </Link>
         {isAuthenticated && me?.roles?.includes('organizer') && (
-          <Link to="/organizer/create" style={{ marginRight: '1rem' }}>
+          <Link to="/organizer/create">
             Создать событие
           </Link>
         )}
         {isAuthenticated && (
-          <Link to="/me/registrations" style={{ marginRight: '1rem' }}>
+          <Link to="/me/registrations">
             Мои регистрации
           </Link>
         )}
         {isAuthenticated && me?.roles?.includes('admin') && (
-          <Link to="/admin" style={{ marginRight: '1rem' }}>
+          <Link to="/admin">
             Админ-панель
           </Link>
         )}
         {isAuthenticated ? (
-          <button onClick={logout} style={{ marginRight: '1rem' }}>
+          <Button onClick={logout}>
             Выйти
-          </button>
+          </Button>
         ) : (
           <>
-            <Link to="/login" style={{ marginRight: '1rem' }}>
+            <Link to="/login">
               Войти
             </Link>
             <Link to="/register">Регистрация</Link>
@@ -51,12 +52,12 @@ export default function HomePage() {
         )}
       </nav>
       {isAuthenticated && me && (
-        <p>
+        <StatusMessage tone="muted">
           Вы вошли как {me.email} (роли: {me.roles.join(', ')})
-        </p>
+        </StatusMessage>
       )}
-      {isAuthenticated && !me && <p>Вы авторизованы.</p>}
+      {isAuthenticated && !me && <StatusMessage tone="muted">Вы авторизованы.</StatusMessage>}
       {!isAuthenticated && <p>Добро пожаловать. Войдите или зарегистрируйтесь.</p>}
-    </div>
+    </PageContainer>
   )
 }

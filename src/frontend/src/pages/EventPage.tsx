@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { Button, Card, FormField, PageContainer, StatusMessage, TextInput } from '../components/ui'
 
 interface TicketType {
   id: number
@@ -224,25 +225,41 @@ export default function EventPage() {
     }
   }
 
-  if (loading) return <p style={{ padding: '2rem' }}>Загрузка...</p>
-  if (error || !event) return <p style={{ padding: '2rem', color: 'red' }}>{error || 'Событие не найдено'}</p>
+  if (loading) {
+    return (
+      <PageContainer size="md">
+        <p>Загрузка...</p>
+      </PageContainer>
+    )
+  }
+  if (error || !event) {
+    return (
+      <PageContainer size="md">
+        <StatusMessage tone="error" role="alert">
+          {error || 'Событие не найдено'}
+        </StatusMessage>
+      </PageContainer>
+    )
+  }
 
   const canRegister = event.status === 'active' && event.ticketTypes.length > 0
   const isOrganizer = me && Number(event.organizerId) === Number(me.id)
 
   return (
-    <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
-      <p style={{ marginBottom: '1rem' }}>
+    <PageContainer size="md" className="stack-lg">
+      <p>
         <Link to="/events">← Каталог</Link>
       </p>
 
       <h1>{event.title}</h1>
 
       {event.status === 'cancelled' && (
-        <p style={{ color: 'red', fontWeight: 'bold' }}>Событие отменено</p>
+        <StatusMessage tone="error" role="alert">
+          Событие отменено
+        </StatusMessage>
       )}
 
-      <p style={{ color: '#666', marginBottom: '0.5rem' }}>
+      <p className="muted" style={{ marginBottom: '0.5rem' }}>
         {formatDate(event.startAt)} — {formatDate(event.endAt)}
       </p>
       <p style={{ marginBottom: '0.5rem' }}>
@@ -254,25 +271,17 @@ export default function EventPage() {
         </p>
       )}
 
-      {event.description && (
-        <div style={{ marginBottom: '1.5rem', whiteSpace: 'pre-wrap' }}>{event.description}</div>
-      )}
+      {event.description && <Card><div style={{ whiteSpace: 'pre-wrap' }}>{event.description}</div></Card>}
 
       {event.ticketTypes.length > 0 && (
-        <div style={{ marginTop: '1.5rem' }}>
+        <div>
           <h3>Типы билетов</h3>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} className="stack">
             {event.ticketTypes.map((tt) => (
-              <li
-                key={tt.id}
-                style={{
-                  border: '1px solid #ddd',
-                  borderRadius: 6,
-                  padding: '0.75rem',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                <strong>{tt.name}</strong> — {tt.price === 0 ? 'Бесплатно' : `${tt.price} ₽`} (мест: {tt.capacity})
+              <li key={tt.id}>
+                <Card>
+                  <strong>{tt.name}</strong> — {tt.price === 0 ? 'Бесплатно' : `${tt.price} ₽`} (мест: {tt.capacity})
+                </Card>
               </li>
             ))}
           </ul>
@@ -280,30 +289,20 @@ export default function EventPage() {
       )}
 
       {regSuccess ? (
-        <div
-          style={{
-            marginTop: '2rem',
-            padding: '1.5rem',
-            background: '#e8f5e9',
-            borderRadius: 8,
-            border: '1px solid #a5d6a7',
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', color: '#2e7d32' }}>Регистрация успешна!</h3>
+        <StatusMessage tone="success">
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#177245' }}>Регистрация успешна!</h3>
           <p style={{ margin: 0 }}>
             На указанный email будет отправлено письмо с подтверждением регистрации.
           </p>
-        </div>
+        </StatusMessage>
       ) : (
         canRegister && (
-          <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: 8 }}>
+          <Card>
             <h3>Зарегистрироваться</h3>
-            <form onSubmit={handleRegister}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                  Тип билета
-                </label>
+            <form onSubmit={handleRegister} className="stack">
+              <FormField label="Тип билета" htmlFor="ticket-type" required>
                 <select
+                  id="ticket-type"
                   value={ticketTypeId ?? ''}
                   onChange={(e) => {
                     const v = e.target.value
@@ -311,7 +310,7 @@ export default function EventPage() {
                     setPaymentCompleted(false)
                   }}
                   required
-                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                  className="control"
                 >
                   <option value="">— Выберите —</option>
                   {event.ticketTypes.map((tt) => (
@@ -320,16 +319,15 @@ export default function EventPage() {
                     </option>
                   ))}
                 </select>
-              </div>
+              </FormField>
 
               {ticketTypeId && (event.ticketTypes.find((t) => t.id === ticketTypeId)?.price ?? 0) > 0 && (
                 <div
                   style={{
-                    marginBottom: '1rem',
                     padding: '1rem',
-                    background: '#fff3e0',
+                    background: '#fff7e8',
                     borderRadius: 6,
-                    border: '1px solid #ffcc80',
+                    border: '1px solid #f0d8aa',
                   }}
                 >
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
@@ -340,175 +338,166 @@ export default function EventPage() {
                     />
                     <span>Оплата произведена (заглушка)</span>
                   </label>
-                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#666' }}>
+                  <p className="muted" style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem' }}>
                     В реальном приложении здесь будет переход к оплате.
                   </p>
                 </div>
               )}
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                  Email <span style={{ color: 'red' }}>*</span>
-                </label>
-                <input
+              <FormField label="Email" htmlFor="reg-email" required>
+                <TextInput
+                  id="reg-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
                 />
-              </div>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                    Имя <span style={{ color: 'red' }}>*</span>
-                  </label>
-                  <input
+              </FormField>
+              <div className="form-row">
+                <FormField label="Имя" htmlFor="reg-first-name" required>
+                  <TextInput
+                    id="reg-first-name"
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
                     autoComplete="given-name"
-                    style={{ display: 'block', width: '100%', padding: '0.5rem' }}
                   />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                    Фамилия <span style={{ color: 'red' }}>*</span>
-                  </label>
-                  <input
+                </FormField>
+                <FormField label="Фамилия" htmlFor="reg-last-name" required>
+                  <TextInput
+                    id="reg-last-name"
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
                     autoComplete="family-name"
-                    style={{ display: 'block', width: '100%', padding: '0.5rem' }}
                   />
-                </div>
+                </FormField>
               </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                  Отчество
-                </label>
-                <input
+              <FormField label="Отчество" htmlFor="reg-middle-name">
+                <TextInput
+                  id="reg-middle-name"
                   type="text"
                   value={middleName}
                   onChange={(e) => setMiddleName(e.target.value)}
                   autoComplete="additional-name"
-                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
                 />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                  Телефон
-                </label>
-                <input
+              </FormField>
+              <FormField label="Телефон" htmlFor="reg-phone">
+                <TextInput
+                  id="reg-phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   autoComplete="tel"
-                  style={{ display: 'block', width: '100%', padding: '0.5rem' }}
                 />
-              </div>
-              {regError && <p style={{ color: 'red', marginBottom: '1rem' }}>{regError}</p>}
-              <button type="submit" disabled={regLoading} style={{ padding: '0.5rem 1rem' }}>
+              </FormField>
+              {regError && (
+                <StatusMessage tone="error" role="alert">
+                  {regError}
+                </StatusMessage>
+              )}
+              <Button type="submit" variant="primary" disabled={regLoading}>
                 {regLoading ? 'Отправка...' : 'Зарегистрироваться'}
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         )
       )}
 
       {isOrganizer && (
-        <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: 8 }}>
+        <Card>
           <h3>Участники</h3>
           <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
+            <Button
               type="button"
               onClick={() => handleExport('xlsx')}
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.9rem' }}
             >
               Экспорт Excel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => handleExport('pdf')}
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.9rem' }}
             >
               Экспорт PDF
-            </button>
+            </Button>
           </div>
           {participantsLoading ? (
             <p>Загрузка участников...</p>
           ) : participants.length === 0 ? (
-            <p style={{ color: '#666' }}>Пока нет зарегистрированных участников.</p>
+            <StatusMessage tone="muted">Пока нет зарегистрированных участников.</StatusMessage>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <div className="table-wrap">
+              <table className="table">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-                    <th style={{ padding: '0.5rem' }}>ФИО</th>
-                    <th style={{ padding: '0.5rem' }}>Email</th>
-                    <th style={{ padding: '0.5rem' }}>Телефон</th>
-                    <th style={{ padding: '0.5rem' }}>Чек-ин</th>
-                    <th style={{ padding: '0.5rem' }}></th>
+                  <tr>
+                    <th>ФИО</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th>Чек-ин</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {participants.map((reg) => {
                     const fullName = [reg.lastName, reg.firstName, reg.middleName].filter(Boolean).join(' ')
                     return (
-                      <tr key={reg.id} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={{ padding: '0.5rem' }}>{fullName}</td>
-                        <td style={{ padding: '0.5rem' }}>{reg.email}</td>
-                        <td style={{ padding: '0.5rem' }}>{reg.phone ?? '—'}</td>
-                        <td style={{ padding: '0.5rem' }}>
+                      <tr key={reg.id}>
+                        <td>{fullName}</td>
+                        <td>{reg.email}</td>
+                        <td>{reg.phone ?? '—'}</td>
+                        <td>
                           {reg.status === 'checked_in' ? (
-                            <span style={{ color: '#2e7d32' }}>✓ Да</span>
+                            <span style={{ color: '#177245' }}>✓ Да</span>
                           ) : (
-                            <span style={{ color: '#666' }}>Нет</span>
+                            <span className="muted">Нет</span>
                           )}
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
+                        <td>
                           {confirmCancelId === reg.id ? (
                               <span style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                                <button
+                                <Button
                                   type="button"
                                   onClick={() => handleCancelRegistration(reg.id)}
                                   disabled={actionId !== null}
-                                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', color: '#c62828' }}
+                                  variant="danger"
+                                  size="sm"
                                 >
                                   Да
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   type="button"
                                   onClick={() => setConfirmCancelId(null)}
-                                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem' }}
+                                  size="sm"
                                 >
                                   Нет
-                                </button>
+                                </Button>
                               </span>
                             ) : (
                               <>
                                 {reg.status !== 'checked_in' && (
-                                  <button
+                                  <Button
                                     type="button"
                                     onClick={() => handleCheckIn(reg.id)}
                                     disabled={actionId !== null}
-                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', marginRight: '0.25rem' }}
+                                    size="sm"
+                                    variant="primary"
+                                    style={{ marginRight: '0.25rem' }}
                                   >
                                     {actionId === reg.id ? '...' : 'Чек-ин'}
-                                  </button>
+                                  </Button>
                                 )}
-                                <button
+                                <Button
                                   type="button"
                                   onClick={() => setConfirmCancelId(reg.id)}
                                   disabled={actionId !== null}
-                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', color: '#c62828' }}
+                                  size="sm"
+                                  variant="danger"
                                 >
                                   Отменить
-                                </button>
+                                </Button>
                               </>
                             )}
                         </td>
@@ -519,8 +508,8 @@ export default function EventPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
       )}
-    </div>
+    </PageContainer>
   )
 }

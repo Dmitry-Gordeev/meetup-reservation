@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { Button, Card, PageContainer, StatusMessage, TextInput } from '../components/ui'
 
 interface AdminEvent {
   id: number
@@ -53,6 +54,7 @@ export default function AdminPage() {
 
   const [newCategoryName, setNewCategoryName] = useState('')
   const [editingCategory, setEditingCategory] = useState<AdminCategory | null>(null)
+  const tabOrder: Array<'events' | 'users' | 'categories'> = ['events', 'users', 'categories']
 
   const loadEvents = useCallback(() => {
     apiFetch('/admin/events')
@@ -205,122 +207,135 @@ export default function AdminPage() {
     }
   }
 
+  function handleTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, tab: 'events' | 'users' | 'categories') {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    e.preventDefault()
+    const current = tabOrder.indexOf(tab)
+    const direction = e.key === 'ArrowRight' ? 1 : -1
+    const nextIndex = (current + direction + tabOrder.length) % tabOrder.length
+    setActiveTab(tabOrder[nextIndex])
+  }
+
   if (!isAuthenticated) return null
-  if (me === null) return <p style={{ padding: '2rem' }}>Загрузка...</p>
+  if (me === null) return <PageContainer size="lg"><p>Загрузка...</p></PageContainer>
   if (!me.roles?.includes('admin')) {
     return (
-      <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
-        <p style={{ marginBottom: '1rem' }}>
+      <PageContainer size="md" className="stack">
+        <p>
           <Link to="/">← Главная</Link>
         </p>
-        <p style={{ color: 'red' }}>Доступ запрещён. Требуется роль администратора.</p>
-      </div>
+        <StatusMessage tone="error" role="alert">
+          Доступ запрещён. Требуется роль администратора.
+        </StatusMessage>
+      </PageContainer>
     )
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '2rem auto', padding: '1rem' }}>
-      <p style={{ marginBottom: '1rem' }}>
+    <PageContainer size="lg" className="stack-lg">
+      <p>
         <Link to="/">← Главная</Link>
       </p>
 
       <h1>Админ-панель</h1>
 
-      <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', borderBottom: '1px solid #ddd' }}>
+      <div className="tabs" role="tablist" aria-label="Разделы админ-панели">
         <button
           type="button"
+          id="admin-tab-events"
+          role="tab"
+          aria-selected={activeTab === 'events'}
+          aria-controls="admin-panel-events"
           onClick={() => setActiveTab('events')}
-          style={{
-            padding: '0.5rem 1rem',
-            border: 'none',
-            background: activeTab === 'events' ? '#e3f2fd' : 'transparent',
-            borderBottom: activeTab === 'events' ? '2px solid #1976d2' : '2px solid transparent',
-            cursor: 'pointer',
-          }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'events')}
+          className="tab-btn"
         >
           Модерация событий
         </button>
         <button
           type="button"
+          id="admin-tab-users"
+          role="tab"
+          aria-selected={activeTab === 'users'}
+          aria-controls="admin-panel-users"
           onClick={() => setActiveTab('users')}
-          style={{
-            padding: '0.5rem 1rem',
-            border: 'none',
-            background: activeTab === 'users' ? '#e3f2fd' : 'transparent',
-            borderBottom: activeTab === 'users' ? '2px solid #1976d2' : '2px solid transparent',
-            cursor: 'pointer',
-          }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'users')}
+          className="tab-btn"
         >
           Пользователи
         </button>
         <button
           type="button"
+          id="admin-tab-categories"
+          role="tab"
+          aria-selected={activeTab === 'categories'}
+          aria-controls="admin-panel-categories"
           onClick={() => setActiveTab('categories')}
-          style={{
-            padding: '0.5rem 1rem',
-            border: 'none',
-            background: activeTab === 'categories' ? '#e3f2fd' : 'transparent',
-            borderBottom: activeTab === 'categories' ? '2px solid #1976d2' : '2px solid transparent',
-            cursor: 'pointer',
-          }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'categories')}
+          className="tab-btn"
         >
           Категории
         </button>
       </div>
 
-      {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
+      {error && (
+        <StatusMessage tone="error" role="alert">
+          {error}
+        </StatusMessage>
+      )}
 
       {loading ? (
         <p>Загрузка...</p>
       ) : (
         <>
           {activeTab === 'events' && (
-            <div>
+            <Card role="tabpanel" id="admin-panel-events" aria-labelledby="admin-tab-events">
               <h2>Модерация событий</h2>
               {events.length === 0 ? (
-                <p style={{ color: '#666' }}>Нет событий для модерации.</p>
+                <StatusMessage tone="muted">Нет событий для модерации.</StatusMessage>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <div className="table-wrap">
+                  <table className="table">
                     <thead>
-                      <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-                        <th style={{ padding: '0.5rem' }}>Событие</th>
-                        <th style={{ padding: '0.5rem' }}>Дата</th>
-                        <th style={{ padding: '0.5rem' }}>Организатор</th>
-                        <th style={{ padding: '0.5rem' }}>Статус</th>
-                        <th style={{ padding: '0.5rem' }}></th>
+                      <tr>
+                        <th>Событие</th>
+                        <th>Дата</th>
+                        <th>Организатор</th>
+                        <th>Статус</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {events.map((evt) => (
-                        <tr key={evt.id} style={{ borderBottom: '1px solid #eee' }}>
-                          <td style={{ padding: '0.5rem' }}>
+                        <tr key={evt.id}>
+                          <td>
                             <Link to={`/events/${evt.id}`}>{evt.title}</Link>
                           </td>
-                          <td style={{ padding: '0.5rem' }}>{formatDate(evt.startAt)}</td>
-                          <td style={{ padding: '0.5rem' }}>
+                          <td>{formatDate(evt.startAt)}</td>
+                          <td>
                             <Link to={`/organizers/${evt.organizerId}`}>{evt.organizerName ?? '—'}</Link>
                           </td>
-                          <td style={{ padding: '0.5rem' }}>{evt.status === 'blocked' ? 'Заблокировано' : 'Активно'}</td>
-                          <td style={{ padding: '0.5rem' }}>
+                          <td>{evt.status === 'blocked' ? 'Заблокировано' : 'Активно'}</td>
+                          <td>
                             {evt.status === 'blocked' ? (
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleUnblockEvent(evt.id)}
                                 disabled={actionId !== null}
-                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                                size="sm"
                               >
                                 Разблокировать
-                              </button>
+                              </Button>
                             ) : (
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleBlockEvent(evt.id)}
                                 disabled={actionId !== null}
-                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', color: '#c62828' }}
+                                size="sm"
+                                variant="danger"
                               >
                                 Заблокировать
-                              </button>
+                              </Button>
                             )}
                           </td>
                         </tr>
@@ -329,54 +344,55 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
           {activeTab === 'users' && (
-            <div>
+            <Card role="tabpanel" id="admin-panel-users" aria-labelledby="admin-tab-users">
               <h2>Пользователи</h2>
               {users.length === 0 ? (
-                <p style={{ color: '#666' }}>Нет пользователей.</p>
+                <StatusMessage tone="muted">Нет пользователей.</StatusMessage>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <div className="table-wrap">
+                  <table className="table">
                     <thead>
-                      <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-                        <th style={{ padding: '0.5rem' }}>Email</th>
-                        <th style={{ padding: '0.5rem' }}>Роли</th>
-                        <th style={{ padding: '0.5rem' }}>Статус</th>
-                        <th style={{ padding: '0.5rem' }}></th>
+                      <tr>
+                        <th>Email</th>
+                        <th>Роли</th>
+                        <th>Статус</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.map((u) => (
-                        <tr key={u.id} style={{ borderBottom: '1px solid #eee' }}>
-                          <td style={{ padding: '0.5rem' }}>{u.email}</td>
-                          <td style={{ padding: '0.5rem' }}>{u.roles.join(', ')}</td>
-                          <td style={{ padding: '0.5rem' }}>{u.isBlocked ? 'Заблокирован' : 'Активен'}</td>
-                          <td style={{ padding: '0.5rem' }}>
+                        <tr key={u.id}>
+                          <td>{u.email}</td>
+                          <td>{u.roles.join(', ')}</td>
+                          <td>{u.isBlocked ? 'Заблокирован' : 'Активен'}</td>
+                          <td>
                             {u.isBlocked ? (
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() =>
                                   u.roles.includes('organizer') ? handleUnblockOrganizer(u.id) : handleUnblockUser(u.id)
                                 }
                                 disabled={actionId !== null}
-                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                                size="sm"
                               >
                                 Разблокировать
-                              </button>
+                              </Button>
                             ) : (
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() =>
                                   u.roles.includes('organizer') ? handleBlockOrganizer(u.id) : handleBlockUser(u.id)
                                 }
                                 disabled={actionId !== null || u.roles.includes('admin')}
-                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', color: '#c62828' }}
+                                size="sm"
+                                variant="danger"
                               >
                                 Заблокировать
-                              </button>
+                              </Button>
                             )}
                           </td>
                         </tr>
@@ -385,28 +401,29 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
           {activeTab === 'categories' && (
-            <div>
+            <Card className="stack" role="tabpanel" id="admin-panel-categories" aria-labelledby="admin-tab-categories">
               <h2>Категории</h2>
-              <form onSubmit={handleCreateCategory} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <input
+              <form onSubmit={handleCreateCategory} className="cluster">
+                <TextInput
                   type="text"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="Название категории"
-                  style={{ padding: '0.5rem', flex: 1, maxWidth: 300 }}
+                  style={{ flex: 1, minWidth: 220, maxWidth: 360 }}
+                  aria-label="Название категории"
                 />
-                <button type="submit" disabled={actionId !== null || !newCategoryName.trim()} style={{ padding: '0.5rem 1rem' }}>
+                <Button type="submit" variant="primary" disabled={actionId !== null || !newCategoryName.trim()}>
                   Добавить
-                </button>
+                </Button>
               </form>
               {categories.length === 0 ? (
-                <p style={{ color: '#666' }}>Нет категорий.</p>
+                <StatusMessage tone="muted">Нет категорий.</StatusMessage>
               ) : (
-                <ul style={{ listStyle: 'none', padding: 0 }}>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} className="stack">
                   {categories.map((cat) => (
                     <li
                       key={cat.id}
@@ -422,11 +439,11 @@ export default function AdminPage() {
                     >
                       {editingCategory?.id === cat.id ? (
                         <form onSubmit={handleUpdateCategory} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flex: 1 }}>
-                          <input
+                          <TextInput
                             type="text"
                             value={editingCategory.name}
                             onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                            style={{ padding: '0.35rem', flex: 1, maxWidth: 200 }}
+                            style={{ flex: 1, maxWidth: 220 }}
                           />
                           <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.9rem' }}>
                             <input
@@ -436,38 +453,37 @@ export default function AdminPage() {
                             />
                             Архив
                           </label>
-                          <input
+                          <TextInput
                             type="number"
                             value={editingCategory.sortOrder}
                             onChange={(e) => setEditingCategory({ ...editingCategory, sortOrder: Number(e.target.value) || 0 })}
-                            style={{ padding: '0.35rem', width: 60 }}
+                            style={{ width: 80 }}
                           />
-                          <button type="submit" disabled={actionId !== null} style={{ padding: '0.35rem 0.75rem' }}>
+                          <Button type="submit" disabled={actionId !== null} size="sm">
                             Сохранить
-                          </button>
-                          <button type="button" onClick={() => setEditingCategory(null)} style={{ padding: '0.35rem 0.75rem' }}>
+                          </Button>
+                          <Button type="button" onClick={() => setEditingCategory(null)} size="sm">
                             Отмена
-                          </button>
+                          </Button>
                         </form>
                       ) : (
                         <>
                           <span>
-                            {cat.name}
-                            {cat.isArchived && <span style={{ marginLeft: '0.5rem', color: '#666', fontSize: '0.85rem' }}>(архив)</span>}
+                            {cat.name} {cat.isArchived && <span className="muted" style={{ fontSize: '0.85rem' }}>(архив)</span>}
                           </span>
-                          <button type="button" onClick={() => setEditingCategory(cat)} style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}>
+                          <Button type="button" onClick={() => setEditingCategory(cat)} size="sm">
                             Редактировать
-                          </button>
+                          </Button>
                         </>
                       )}
                     </li>
                   ))}
                 </ul>
               )}
-            </div>
+            </Card>
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   )
 }

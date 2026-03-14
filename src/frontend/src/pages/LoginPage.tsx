@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../api/client'
+import { Button, FormField, PageContainer, StatusMessage, TextInput } from '../components/ui'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -41,43 +42,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '2rem auto', padding: '1rem' }}>
+    <PageContainer size="sm">
       <h1>Вход</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Email{' '}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Пароль{' '}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
-        {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ padding: '0.5rem 1rem' }}>
+      <form onSubmit={handleSubmit} className="surface-card stack">
+        <FormField label="Email" htmlFor="login-email" required>
+          <TextInput
+            id="login-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </FormField>
+        <FormField label="Пароль" htmlFor="login-password" required>
+          <TextInput
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+        </FormField>
+        {error && (
+          <StatusMessage tone="error" role="alert">
+            {error}
+          </StatusMessage>
+        )}
+        <Button type="submit" variant="primary" disabled={loading}>
           {loading ? 'Вход...' : 'Войти'}
-        </button>
+        </Button>
       </form>
-      <p style={{ marginTop: '1rem' }}>
+      <p style={{ marginTop: '1rem' }} className="muted">
         Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
       </p>
-    </div>
+    </PageContainer>
   )
 }

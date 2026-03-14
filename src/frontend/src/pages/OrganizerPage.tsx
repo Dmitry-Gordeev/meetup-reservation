@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiFetch, getApiUrl } from '../api/client'
+import { Card, PageContainer, StatusMessage } from '../components/ui'
 
 interface OrganizerProfile {
   id: number
@@ -51,12 +52,20 @@ export default function OrganizerPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  if (loading) return <p style={{ padding: '2rem' }}>Загрузка...</p>
-  if (error || !profile) return <p style={{ padding: '2rem', color: 'red' }}>{error || 'Страница не найдена'}</p>
+  if (loading) return <PageContainer size="md"><p>Загрузка...</p></PageContainer>
+  if (error || !profile) {
+    return (
+      <PageContainer size="md">
+        <StatusMessage tone="error" role="alert">
+          {error || 'Страница не найдена'}
+        </StatusMessage>
+      </PageContainer>
+    )
+  }
 
   return (
-    <div style={{ maxWidth: 700, margin: '2rem auto', padding: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem' }}>
+    <PageContainer size="md" className="stack-lg">
+      <div className="cluster" style={{ alignItems: 'flex-start', gap: '1.5rem' }}>
         {profile.hasAvatar && (
           <img
             src={getApiUrl(`/organizers/${id}/avatar`)}
@@ -66,35 +75,29 @@ export default function OrganizerPage() {
         )}
         <div>
           <h1 style={{ margin: 0 }}>{profile.name}</h1>
-          {profile.description && <p style={{ color: '#666', marginTop: '0.5rem' }}>{profile.description}</p>}
+          {profile.description && <p className="muted" style={{ marginTop: '0.5rem' }}>{profile.description}</p>}
         </div>
       </div>
 
       <h2>События</h2>
       {events.length === 0 ? (
-        <p>Пока нет событий</p>
+        <StatusMessage tone="muted">Пока нет событий</StatusMessage>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} className="stack">
           {events.map((evt) => (
-            <li
-              key={evt.id}
-              style={{
-                border: '1px solid #ccc',
-                borderRadius: 8,
-                padding: '1rem',
-                marginBottom: '1rem',
-              }}
-            >
-              <Link to={`/events/${evt.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <h3 style={{ margin: '0 0 0.5rem' }}>{evt.title}</h3>
-              </Link>
-              <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
-                {formatDate(evt.startAt)} — {evt.location || (evt.isOnline ? 'Онлайн' : '—')}
-              </p>
+            <li key={evt.id}>
+              <Card>
+                <Link to={`/events/${evt.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <h3 style={{ margin: '0 0 0.5rem' }}>{evt.title}</h3>
+                </Link>
+                <p className="muted" style={{ margin: 0, fontSize: '0.92rem' }}>
+                  {formatDate(evt.startAt)} — {evt.location || (evt.isOnline ? 'Онлайн' : '—')}
+                </p>
+              </Card>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   )
 }

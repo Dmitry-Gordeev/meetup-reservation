@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch, getApiUrl } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import {
+  Button,
+  Card,
+  FormField,
+  PageContainer,
+  StatusMessage,
+  TextAreaInput,
+  TextInput,
+} from '../components/ui'
 
 interface Category {
   id: number
@@ -151,109 +160,100 @@ export default function OrganizerCabinetPage() {
   if (!isAuthenticated) return null
   if (me && !isOrganizer) {
     return (
-      <div style={{ maxWidth: 600, margin: '2rem auto', padding: '1rem' }}>
-        <p style={{ color: 'red' }}>Доступ только для организаторов.</p>
+      <PageContainer size="md" className="stack">
+        <StatusMessage tone="error" role="alert">
+          Доступ только для организаторов.
+        </StatusMessage>
         <Link to="/">На главную</Link>
-      </div>
+      </PageContainer>
     )
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '2rem auto', padding: '1rem' }}>
-      <p style={{ marginBottom: '1rem' }}>
+    <PageContainer size="md" className="stack-lg">
+      <p>
         <Link to="/">← На главную</Link>
       </p>
       <h1>Создание события</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Название *{' '}
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
+      <form onSubmit={handleSubmit} className="stack-lg">
+        <Card>
+          <div className="stack">
+            <FormField label="Название" htmlFor="event-title" required>
+              <TextInput
+                id="event-title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </FormField>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Описание{' '}
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
+            <FormField label="Описание" htmlFor="event-description">
+              <TextAreaInput
+                id="event-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+              />
+            </FormField>
 
-        <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <label>
-            Начало *{' '}
-            <input
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              required
-              style={{ padding: '0.5rem' }}
-            />
-          </label>
-          <label>
-            Окончание *{' '}
-            <input
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-              required
-              style={{ padding: '0.5rem' }}
-            />
-          </label>
-        </div>
+            <div className="form-row">
+              <FormField label="Начало" htmlFor="event-start-at" required>
+                <TextInput
+                  id="event-start-at"
+                  type="datetime-local"
+                  value={startAt}
+                  onChange={(e) => setStartAt(e.target.value)}
+                  required
+                />
+              </FormField>
+              <FormField label="Окончание" htmlFor="event-end-at" required>
+                <TextInput
+                  id="event-end-at"
+                  type="datetime-local"
+                  value={endAt}
+                  onChange={(e) => setEndAt(e.target.value)}
+                  required
+                />
+              </FormField>
+            </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Место{' '}
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Адрес или ссылка"
-              style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-            />
-          </label>
-        </div>
+            <FormField label="Место" htmlFor="event-location">
+              <TextInput
+                id="event-location"
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Адрес или ссылка"
+              />
+            </FormField>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={isOnline}
-              onChange={(e) => setIsOnline(e.target.checked)}
-            />
-            Онлайн
-          </label>
-        </div>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={isOnline}
+                onChange={(e) => setIsOnline(e.target.checked)}
+              />
+              Онлайн
+            </label>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-            />
-            Публичное
-          </label>
-        </div>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+              />
+              Публичное
+            </label>
+          </div>
+        </Card>
 
-        <div style={{ marginBottom: '1rem' }}>
+        <Card>
           <strong>Категории:</strong>
-          <div style={{ marginTop: '0.5rem' }}>
+          <div className="stack" style={{ marginTop: '0.5rem' }}>
             {categories.map((c) => (
-              <label key={c.id} style={{ display: 'block', marginBottom: '0.25rem' }}>
+              <label key={c.id} className="checkbox-row">
                 <input
                   type="checkbox"
                   checked={selectedCategoryIds.includes(c.id)}
@@ -263,16 +263,16 @@ export default function OrganizerCabinetPage() {
               </label>
             ))}
           </div>
-        </div>
+        </Card>
 
-        <div style={{ marginBottom: '1rem' }}>
+        <Card className="stack">
           <strong>Типы билетов *</strong> (минимум один)
           {ticketTypes.map((tt, i) => (
             <div
               key={i}
               style={{
-                border: '1px solid #ddd',
-                borderRadius: 6,
+                border: '1px solid var(--color-border)',
+                borderRadius: 8,
                 padding: '0.75rem',
                 marginTop: '0.5rem',
                 display: 'flex',
@@ -283,55 +283,65 @@ export default function OrganizerCabinetPage() {
             >
               <input
                 type="text"
+                aria-label={`Название типа билета ${i + 1}`}
                 placeholder="Название"
                 value={tt.name}
                 onChange={(e) => updateTicketType(i, 'name', e.target.value)}
-                style={{ flex: 1, minWidth: 100, padding: '0.5rem' }}
+                className="control"
+                style={{ flex: 1, minWidth: 160 }}
               />
               <input
                 type="number"
+                aria-label={`Цена типа билета ${i + 1}`}
                 placeholder="Цена"
                 value={tt.price || ''}
                 onChange={(e) => updateTicketType(i, 'price', e.target.value)}
                 min={0}
                 step={0.01}
-                style={{ width: 80, padding: '0.5rem' }}
+                className="control"
+                style={{ width: 110 }}
               />
               <input
                 type="number"
+                aria-label={`Количество мест для типа билета ${i + 1}`}
                 placeholder="Мест"
                 value={tt.capacity || ''}
                 onChange={(e) => updateTicketType(i, 'capacity', e.target.value)}
                 min={1}
-                style={{ width: 80, padding: '0.5rem' }}
+                className="control"
+                style={{ width: 110 }}
               />
-              <button type="button" onClick={() => removeTicketType(i)} disabled={ticketTypes.length <= 1}>
+              <Button type="button" onClick={() => removeTicketType(i)} disabled={ticketTypes.length <= 1} size="sm">
                 ×
-              </button>
+              </Button>
             </div>
           ))}
-          <button type="button" onClick={addTicketType} style={{ marginTop: '0.5rem', padding: '0.25rem 0.5rem' }}>
+          <Button type="button" onClick={addTicketType}>
             + Добавить тип билета
-          </button>
-        </div>
+          </Button>
+        </Card>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            Фото события{' '}
-            <input
+        <Card className="stack">
+          <FormField label="Фото события" htmlFor="event-photo">
+            <TextInput
+              id="event-photo"
               type="file"
               accept="image/*"
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
             />
-          </label>
-        </div>
+          </FormField>
+        </Card>
 
-        {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
+        {error && (
+          <StatusMessage tone="error" role="alert">
+            {error}
+          </StatusMessage>
+        )}
 
-        <button type="submit" disabled={loading} style={{ padding: '0.5rem 1rem' }}>
+        <Button type="submit" variant="primary" disabled={loading}>
           {loading ? 'Создание...' : 'Создать событие'}
-        </button>
+        </Button>
       </form>
-    </div>
+    </PageContainer>
   )
 }
