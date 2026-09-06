@@ -1,0 +1,23 @@
+schema: spec-driven
+
+context: |
+  Meetup Reservation — платформа для организации мероприятий и регистрации участников.
+  Стек: ASP.NET Core (.NET 10) + Dapper + PostgreSQL (схема meetup, только SQL-скрипты в src/backend/db/),
+  React + TypeScript + Vite. Без ORM. API под /api/v1, JWT (1 час), роли organizer / participant / admin.
+  Email только через локальный SMTP (MailKit). Персональные данные не покидают систему.
+  Полная архитектурная документация (TOGAF ADM) — в spec/phase-*.md; спецификации в openspec/specs/
+  описывают то, что реально работает в коде, и обновляются вместе с ним.
+
+rules:
+  proposal:
+    - Указывать, какие capability затронуты и какие FR из spec/phase-b-business-architecture.md меняют статус
+    - Явно перечислять, что остаётся вне границ изменения
+  specs:
+    - Одна папка на capability, имена совпадают с BC-01..BC-10 из Phase B
+    - Требование формулируется через SHALL и покрывается хотя бы одним сценарием WHEN/THEN
+  design:
+    - Изменение схемы БД — только новый нумерованный SQL-скрипт в src/backend/db/
+    - Новые endpoints — под /api/v1, существующие не меняют семантику
+  tasks:
+    - Порядок: схема → домен → API → уведомления → frontend → развёртывание/откат
+    - Каждая задача проверяема вручную по сценарию из дельты
