@@ -96,3 +96,95 @@
 - Не вноси изменения вне @src/frontend без явной необходимости.
 - Если чего-то не хватает (например, стек/библиотека UI), сначала спроси уточнение.
 ```
+
+---
+
+## Spec Kit (функция `specs/001-qr-checkin/`)
+
+### Конституция
+
+```markdown
+/speckit.constitution Собери конституцию проекта из spec/phase-a-architecture-vision.md (принципы AP-1–AP-5, границы раздела 3.2) и spec/phase-d-technology-architecture.md (стандарты TS-01–TS-18). Пять принципов, ограничения, порядок работы, правила отступлений.
+```
+
+### Спецификация функции
+
+```markdown
+/speckit.specify Чек-ин по QR-коду. Сейчас организатор отмечает участников вручную (PATCH /registrations/{id}/check-in). Нужно: уникальный QR в письме-подтверждении, страница сканирования у организатора, повторное сканирование отклоняется, ручная отметка остаётся. Источник: FR-05.5 в spec/phase-b-business-architecture.md.
+```
+
+### Уточнения по одному
+
+```markdown
+/speckit.clarify
+```
+
+### План, задачи, проверка
+
+```markdown
+/speckit.plan Стек и ограничения — из конституции. Схема БД только SQL-скриптом в src/backend/db/. QR генерировать внутри backend, внешние сервисы не использовать. Новые библиотеки — с обоснованием в Complexity Tracking.
+```
+
+```markdown
+/speckit.tasks
+```
+
+```markdown
+/speckit.analyze
+```
+
+### Реализация и сверка
+
+```markdown
+/speckit.implement Выполняй задачи по одной. После каждой — dotnet build и npm run build. Не переходи к следующей без моего подтверждения.
+```
+
+```markdown
+/speckit.converge
+```
+
+---
+
+## OpenSpec (`openspec/`)
+
+### Описание текущего состояния
+
+```markdown
+/opsx:onboard Опиши текущее состояние системы в openspec/specs/: одна папка на бизнес-возможность BC-01–BC-10 из spec/phase-b-business-architecture.md. Требования — из FR-01–FR-09 и реального поведения контроллеров в src/backend/Controllers. Каждое требование через SHALL и хотя бы один сценарий WHEN/THEN. Ничего не придумывай сверх того, что есть в коде.
+```
+
+### Изменение по шагам
+
+```markdown
+/opsx:new waitlist
+```
+
+```markdown
+/opsx:continue
+```
+
+Повторять `/opsx:continue`, пока не созданы proposal, дельты спецификаций, design и tasks. Перед `tasks` — проверка: текущее состояние ↔ proposal ↔ design ↔ дельты.
+
+### Быстрый путь
+
+```markdown
+/opsx:propose waitlist Лист ожидания на бесплатные типы билетов: при исчерпании мест участник встаёт в очередь, при освобождении места первый в очереди автоматически переводится в регистрацию и получает письмо. Платные билеты — вне границ до внедрения платежей.
+```
+
+### Реализация, проверка, синхронизация
+
+```markdown
+/opsx:apply waitlist
+```
+
+```markdown
+/opsx:verify waitlist
+```
+
+```markdown
+/opsx:sync waitlist
+```
+
+```markdown
+/opsx:archive waitlist
+```
